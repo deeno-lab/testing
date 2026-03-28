@@ -408,6 +408,96 @@ const fxFrankfurter={
   'CHF=X':['USD','CHF'],'EURJPY=X':['EUR','JPY'],'GBPJPY=X':['GBP','JPY'],
 };
 
+// ══════════════════════════════════════════════════
+// TRADINGVIEW postMessage PRICE LISTENER
+// TradingView's iframe widget broadcasts real-time
+// price ticks to the parent via window.postMessage.
+// We intercept these to show the exact same price
+// the chart displays — no separate API needed.
+// ══════════════════════════════════════════════════
+let tvPriceReceived = false;
+let tvPriceTimeout = null;
+
+window.addEventListener('message', function(e) {
+  // Only accept messages from TradingView
+  if (!e.origin || !e.origin.includes('tradingview.com')) return;
+
+  try {
+    const msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (!msg || !currentSym) return;
+
+    // TradingView sends several message types; we want quote/price data
+    // Common payloads: {name:'quoteUpdate'}, {name:'widgetReady'}, price in various fields
+    let price = null;
+
+    // Pattern 1: direct quote update with last/lp field
+    if (msg.name === 'quoteUpdate' || msg.type === 'quoteUpdate') {
+      price = msg.data?.lp ?? msg.data?.last ?? msg.data?.close ?? msg.lp ?? msg.last;
+    }
+    // Pattern 2: ticker data object
+    if (!price && msg.data && typeof msg.data === 'object') {
+      price = msg.data.lp ?? msg.data.last_price ?? msg.data.close ?? msg.data.price;
+    }
+    // Pattern 3: flat message with price fields
+    if (!price) {
+      price = msg.lp ?? msg.last_price ?? msg.price ?? msg.close;
+    }
+    // Pattern 4: array payload (TV sometimes sends [type, {data}])
+    if (!price && Array.isArray(msg) && msg.length >= 2) {
+      const payload = msg[1];
+      if (payload && typeof payload === 'object') {
+        price = payload.lp ?? payload.last ?? payload.close ?? payload.price;
+      }
+    }
+
+    if (price && !isNaN(parseFloat(price)) && parseFloat(price) > 0) {
+      const p = parseFloat(price);
+      tvPriceReceived = true;
+      updatePriceDisplay(p, 'tradingview', currentDec, currentUnit);
+
+      // Also update analysisCache so AI signal uses the TV price
+      if (analysisCache) {
+        analysisCache.cur = p;
+        // Rebuild last candle close with live price
+        if (analysisCache.candles && analysisCache.candles.length > 0) {
+          analysisCache.candles[analysisCache.candles.length - 1].close = p;
+        }
+      }
+    }
+  } catch(err) {
+    // Silently ignore parse errors — TV sends many non-JSON messages
+  }
+});
+
+function updatePriceDisplay(price, source, dec, unit) {
+  const priceEl = document.getElementById('priceBig');
+  const labelEl = document.getElementById('priceChgSm');
+  if (!priceEl || !labelEl) return;
+
+  priceEl.textContent = price.toFixed(dec);
+  priceEl.className = 'price-big';
+
+  if (source === 'tradingview') {
+    labelEl.textContent = '▶ LIVE · TradingView Chart · ' + unit;
+    labelEl.className = 'price-chg-sm live';
+    labelEl.style.color = '';
+    setStatus('ok', 'LIVE');
+    document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
+  } else if (source === 'stooq') {
+    labelEl.textContent = '● CLOSE · Stooq · ' + unit;
+    labelEl.className = 'price-chg-sm stooq';
+    labelEl.style.color = '';
+  } else if (source === 'reference') {
+    labelEl.textContent = '⚠ REFERENCE · Awaiting live data';
+    labelEl.className = 'price-chg-sm ref';
+    labelEl.style.color = '';
+  } else {
+    labelEl.textContent = '● LIVE · ' + source + ' · ' + unit;
+    labelEl.className = 'price-chg-sm live';
+    labelEl.style.color = '';
+  }
+}
+
 // PRESET / LOAD
 function onPreset(val){if(!val)return;loadPreset(val);}
 function loadPreset(val){
@@ -418,26 +508,39 @@ function loadPreset(val){
 
 async function loadInstrument(tvSym,name,unit,dec){
   currentSym=tvSym;currentName=name;currentUnit=unit;currentDec=dec;
+  tvPriceReceived=false;
+  clearTimeout(tvPriceTimeout);
+
   document.getElementById('emptyState').style.display='none';
   document.getElementById('mainContent').style.display='block';
   document.getElementById('instHdr').style.display='flex';
   document.getElementById('instNameBig').textContent=name;
-  document.getElementById('instMetaSm').textContent=`${tvSym} · ${unit} · LIVE DATA`;
+  document.getElementById('instMetaSm').textContent=`${tvSym} · ${unit} · REAL-TIME`;
   document.getElementById('chartSymName').textContent=name;
   document.getElementById('chartSymSub').textContent=`${tvSym} · ${unit} · ${currentTF==='D'?'DAILY':currentTF==='60'?'1-HOUR':currentTF==='240'?'4-HOUR':'WEEKLY'}`;
   document.getElementById('priceBig').textContent='···';
-  document.getElementById('priceChgSm').textContent='Fetching live price…';
+  document.getElementById('priceChgSm').textContent='Syncing with chart…';
   document.getElementById('priceChgSm').className='price-chg-sm';
   document.getElementById('priceChgSm').style.color='var(--mut)';
   setStatus('busy','LOADING');
   document.getElementById('updTxt').textContent=new Date().toLocaleTimeString('en-AU');
   document.getElementById('btnAI').disabled=true;
+
+  // Create widget FIRST — TV postMessage may arrive during analysis fetch
   createWidget(tvSym);
+
+  // Run analysis (Stooq/Yahoo for candle history + TA; price may be overridden by TV)
   await buildAnalysisPanel(name,unit,dec,tvSym);
   document.getElementById('btnAI').disabled=false;
-  const src=analysisCache?.dataSource??'reference';
-  const live=['stooq','yahoo-jsonp','yahoo-fetch','frankfurter'];
-  setStatus(live.includes(src)?'ok':'busy',live.includes(src)?'LIVE':'REFERENCE');
+
+  // If TV postMessage hasn't arrived within 6s of widget load, keep Stooq price
+  tvPriceTimeout = setTimeout(() => {
+    if (!tvPriceReceived && analysisCache) {
+      const src = analysisCache.dataSource ?? 'reference';
+      const live = ['stooq','yahoo-jsonp','yahoo-fetch','frankfurter'];
+      setStatus(live.includes(src)?'ok':'busy', live.includes(src)?'CLOSE':'REFERENCE');
+    }
+  }, 6000);
 }
 
 // TRADINGVIEW WIDGET
@@ -599,12 +702,13 @@ async function buildAnalysisPanel(name,unit,dec,sym){
   document.getElementById('sTrend').innerHTML=`<div class="sig-val ${trend.includes('ABOVE')?'buy':'sell'}" style="font-size:10px">${trend}</div><div class="sig-sub">POSITION</div>`;
   document.getElementById('sConf').innerHTML=`<span class="c-pill ${conf.cls}">${conf.icon} ${conf.label}</span><div class="sig-sub" style="margin-top:3px">${conf.pct}%</div>`;
 
-  document.getElementById('priceBig').textContent=cur.toFixed(dec);
-  const srcLabel={'stooq':`● LIVE · Stooq · ${unit}`,'yahoo-jsonp':`● LIVE · Yahoo Finance · ${yahooSym??sym}`,'yahoo-fetch':`● LIVE · Yahoo Finance · ${yahooSym??sym}`,'frankfurter':`● LIVE · Frankfurter ECB`,'reference':`⚠ REFERENCE PRICE · Live fetch unavailable`};
-  const srcCls={'stooq':'stooq','yahoo-jsonp':'live','yahoo-fetch':'live','frankfurter':'live','reference':'ref'};
-  const pe=document.getElementById('priceChgSm');
-  pe.textContent=srcLabel[dataSource]??`● LIVE · ${dataSource}`;
-  pe.className=`price-chg-sm ${srcCls[dataSource]??'live'}`;pe.style.color='';
+  // Show Stooq/fallback price immediately; TV postMessage will override with live tick
+  updatePriceDisplay(cur, dataSource, dec, unit);
+  // Status: Stooq = close price until TV live tick arrives
+  if (!tvPriceReceived) {
+    const liveSources=['stooq','yahoo-jsonp','yahoo-fetch','frankfurter'];
+    setStatus(liveSources.includes(dataSource)?'ok':'busy', liveSources.includes(dataSource)?'CLOSE':'REFERENCE');
+  }
 
   const macroOverall=bullMacro>bearMacro?'bullish':bullMacro<bearMacro?'bearish':'mixed';
   document.getElementById('tp_summary').innerHTML=`<div class="btxt"><strong>Price:</strong> ${cur.toFixed(dec)} ${unit} <span style="color:${dataSource==='reference'?'var(--yel)':'var(--grn)'}">(${dataSource==='reference'?'reference — live unavailable':'live'})</span><br><br><strong>Technical Posture:</strong> ${name} is ${trend.toLowerCase()}. RSI at ${r.toFixed(0)} (${rLbl}). ${pattern.signal!=='NONE'?`Candlestick: <strong>${pattern.name}</strong>.`:'No clear candlestick pattern.'} ${wave.label} Elliott Wave. MACD: ${mc?(mc>0?'bullish':'bearish'):'neutral'}.<br><br><strong>Macro:</strong> ${macroOverall.charAt(0).toUpperCase()+macroOverall.slice(1)} — ${bullMacro} bullish vs ${bearMacro} bearish macro factors. ${macro.desc.slice(0,160)}…<br><br><strong>Key Fib:</strong> Support ${fib.r618.toFixed(dec)} (61.8%) · Resistance ${fib.r382.toFixed(dec)} (38.2%)</div>`;
