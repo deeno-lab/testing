@@ -167,6 +167,31 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .footer{position:relative;z-index:1;padding:10px 24px;border-top:1px solid var(--bdr)}
 .footer-txt{font-family:'JetBrains Mono',monospace;font-size:7px;color:#444;line-height:1.8;letter-spacing:.3px}
 
+/* API KEY BANNER */
+.api-banner{position:relative;z-index:850;background:linear-gradient(90deg,rgba(168,85,247,.12),rgba(236,72,153,.08));border-bottom:1px solid rgba(168,85,247,.3);padding:10px 24px;display:flex;align-items:center;gap:12px}
+.api-banner-icon{font-size:14px;flex-shrink:0}
+.api-banner-txt{font-family:'JetBrains Mono',monospace;font-size:9px;color:#c8bfe0;flex:1;line-height:1.6}
+.api-banner-txt a{color:var(--acc);text-decoration:none}
+.api-banner-txt a:hover{text-decoration:underline}
+.api-key-input-wrap{display:flex;gap:6px;flex-shrink:0}
+.api-key-input{background:var(--p2);border:1px solid var(--bdr2);color:#fff;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;width:260px;letter-spacing:.5px;transition:border-color .15s}
+.api-key-input:focus{border-color:var(--acc)}
+.api-key-input::placeholder{color:var(--mut)}
+.btn-save-key{background:var(--acc);border:none;color:#000;padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-save-key:hover{background:#c084fc}
+.btn-dismiss{background:transparent;border:1px solid var(--bdr2);color:var(--mut);padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s}
+.btn-dismiss:hover{color:#fff;border-color:#fff}
+
+/* KEY SETTINGS — header icon */
+.btn-key{background:transparent;border:1px solid var(--bdr2);color:var(--mut);padding:7px 10px;font-size:12px;cursor:pointer;transition:all .15s;line-height:1}
+.btn-key:hover{color:var(--acc);border-color:var(--acc)}
+.btn-key.active{color:var(--acc);border-color:var(--acc);background:rgba(168,85,247,.1)}
+
+/* KEY STATUS BADGE in header */
+.key-badge{font-family:'JetBrains Mono',monospace;font-size:7px;padding:3px 8px;border:1px solid;letter-spacing:.5px;white-space:nowrap}
+.key-badge.set{color:var(--grn);border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.07)}
+.key-badge.unset{color:var(--yel);border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.07)}
+
 @media(max-width:960px){
   .content-grid{grid-template-columns:1fr}
   .ctrl-row{flex-direction:column;align-items:flex-start}
@@ -186,10 +211,30 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
   <div class="hdr-right">
     <div class="s-chip"><div class="s-dot ok" id="sDot"></div><span class="s-txt ok" id="sTxt">READY</span></div>
     <span class="upd" id="updTxt">—</span>
+    <span class="key-badge unset" id="keyBadge">NO API KEY</span>
+    <button class="btn-key" id="btnKey" onclick="toggleKeyPanel()" title="API Key Settings">🔑</button>
     <button class="btn btn-p" onclick="reloadChart()">↺ REFRESH</button>
     <button class="btn btn-ai" id="btnAI" onclick="openAI()" disabled>⚡ AI SIGNAL</button>
   </div>
 </header>
+
+<!-- API KEY BANNER -->
+<div class="api-banner" id="apiBanner" style="display:none">
+  <span class="api-banner-icon">🔑</span>
+  <div class="api-banner-txt">
+    <strong style="color:#fff">Twelve Data API Key required for live prices.</strong>
+    Get your free key at <a href="https://twelvedata.com/apikey" target="_blank">twelvedata.com/apikey</a>
+    — 800 requests/day free, no credit card. Each user uses their own key.
+  </div>
+  <div class="api-key-input-wrap">
+    <input class="api-key-input" id="apiKeyInput" type="password"
+      placeholder="Paste your Twelve Data API key…"
+      autocomplete="off" spellcheck="false"
+      onkeydown="if(event.key==='Enter')saveApiKey()" />
+    <button class="btn-save-key" onclick="saveApiKey()">SAVE KEY</button>
+    <button class="btn-dismiss" onclick="dismissBanner()" title="Dismiss">✕</button>
+  </div>
+</div>
 
 <div class="ctrl-row">
   <div class="preset-wrap">
@@ -428,8 +473,83 @@ const fxFrankfurter={
 //   4. Last known price cache    (stale but labelled)
 // ══════════════════════════════════════════════════
 
-// ── CONFIGURATION — paste your Twelve Data API key here ──
-const TWELVE_DATA_KEY = 'YOUR_API_KEY_HERE';
+// ══════════════════════════════════════════════════
+// API KEY MANAGEMENT — stored in localStorage
+// Each user/browser has their own key and quota.
+// Keys never leave the browser — stored locally only.
+// ══════════════════════════════════════════════════
+const LS_KEY = 'apex_td_apikey';
+
+function getApiKey() {
+  return localStorage.getItem(LS_KEY) || '';
+}
+
+function saveApiKey() {
+  const input = document.getElementById('apiKeyInput');
+  const key = (input?.value || '').trim();
+  if (!key) { input?.focus(); return; }
+  localStorage.setItem(LS_KEY, key);
+  updateKeyUI(key);
+  hideBanner();
+  // Reload current instrument with the new key
+  if (currentSym) loadInstrument(currentSym, currentName, currentUnit, currentDec);
+}
+
+function clearApiKey() {
+  localStorage.removeItem(LS_KEY);
+  updateKeyUI('');
+  showBanner();
+}
+
+function toggleKeyPanel() {
+  const banner = document.getElementById('apiBanner');
+  const isVisible = banner.style.display !== 'none';
+  if (isVisible) { hideBanner(); } else { showBanner(); }
+}
+
+function showBanner() {
+  const banner = document.getElementById('apiBanner');
+  const btn = document.getElementById('btnKey');
+  const input = document.getElementById('apiKeyInput');
+  banner.style.display = 'flex';
+  btn.classList.add('active');
+  // Pre-fill with current key (masked)
+  const key = getApiKey();
+  if (input) input.value = key;
+  setTimeout(() => input?.focus(), 50);
+}
+
+function hideBanner() {
+  document.getElementById('apiBanner').style.display = 'none';
+  document.getElementById('btnKey').classList.remove('active');
+}
+
+function dismissBanner() {
+  hideBanner();
+}
+
+function updateKeyUI(key) {
+  const badge = document.getElementById('keyBadge');
+  const btn = document.getElementById('btnKey');
+  if (key) {
+    const masked = key.slice(0, 4) + '···' + key.slice(-4);
+    badge.textContent = `KEY: ${masked}`;
+    badge.className = 'key-badge set';
+    btn.title = `API Key set (${masked}) — click to change`;
+  } else {
+    badge.textContent = 'NO API KEY';
+    badge.className = 'key-badge unset';
+    btn.title = 'Set your Twelve Data API key';
+  }
+}
+
+// Initialise key UI on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const key = getApiKey();
+  updateKeyUI(key);
+  // Show banner on first visit (no key stored)
+  if (!key) showBanner();
+});
 
 // TradingView symbol → Twelve Data symbol + optional exchange param
 const tvToTwelve = {
@@ -539,7 +659,7 @@ function startCountdown(waitSecs, tvSym, dec, unit) {
 function tdUrl(endpoint, tvEntry, extraParams = {}) {
   const params = new URLSearchParams({
     symbol:  tvEntry.sym,
-    apikey:  TWELVE_DATA_KEY,
+    apikey:  getApiKey(),
     ...(tvEntry.exchange ? { exchange: tvEntry.exchange } : {}),
     ...extraParams
   });
@@ -631,7 +751,7 @@ async function fetchPriceAndCandles(tvSym) {
   }
 
   // ── Path A: Twelve Data ──
-  if (tdEntry && TWELVE_DATA_KEY !== 'YOUR_API_KEY_HERE') {
+  if (tdEntry && getApiKey()) {
     try {
       const [price, candles] = await Promise.all([
         fetchTwelvePrice(tdEntry),
@@ -716,8 +836,10 @@ function updatePriceDisplay(price, source, dec, unit, tvSym) {
       cls = 'stooq'; statusType = 'busy'; statusTxt = 'CACHED';
       break;
     case 'reference':
-      label = `⚠ NO API KEY · add key to index.html`;
+      label = `⚠ NO API KEY · click 🔑 in the toolbar to add one`;
       cls = 'ref'; statusType = 'err'; statusTxt = 'NO KEY';
+      // Auto-show the banner so users know what to do
+      if (!getApiKey()) setTimeout(showBanner, 500);
       break;
     default:
       label = `● LIVE · ${unit}`;
