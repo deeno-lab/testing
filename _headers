@@ -1,0 +1,7 @@
+/*
+  # Allow TradingView iframe content to load
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://s.tradingview.com https://www.tradingview.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://www.tradingview.com https://s.tradingview.com; img-src 'self' data: https: blob:; connect-src 'self' https://query1.finance.yahoo.com https://query2.finance.yahoo.com https://symbol-search.tradingview.com https://www.tradingview.com; worker-src blob:;
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
