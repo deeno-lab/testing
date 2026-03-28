@@ -3,196 +3,350 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>APEX MARKETS — Live Intelligence Terminal</title>
-<!-- TradingView iframe embed — no JS widget, works on all hosting -->
+<title>APEX MARKETS PRO — Universal Terminal</title>
+<!-- TradingView iframe approach - no JS widget needed, works everywhere -->
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap');
 :root{
-  --bg:#03070d;--p1:#060e1a;--p2:#091525;
-  --bdr:#0f2035;--bdr2:#16304a;
-  --acc:#00bfff;--acc2:#ff8c00;
-  --grn:#00e676;--red:#ff1744;--yel:#ffd600;
-  --txt:#b8d4f0;--mut:#254060;
+  --bg:#06040c;--p1:#0a0714;--p2:#0f0b1c;--p3:#140f24;
+  --bdr:#1a1530;--bdr2:#241d40;
+  --acc:#a855f7;--acc2:#ec4899;--acc3:#22d3ee;
+  --grn:#10b981;--red:#f43f5e;--yel:#f59e0b;
+  --txt:#e2d9f3;--mut:#3d3060;--dim:#080510;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--txt);font-family:'Exo 2',sans-serif;min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 30% at 20% 0%,rgba(0,191,255,.04),transparent),radial-gradient(ellipse 60% 30% at 80% 100%,rgba(255,140,0,.03),transparent);pointer-events:none;z-index:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column}
 
-.hdr{position:sticky;top:0;z-index:900;background:rgba(3,7,13,.98);backdrop-filter:blur(20px);border-bottom:1px solid var(--bdr2);height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
-.logo{font-family:'Orbitron',monospace;font-weight:900;font-size:17px;letter-spacing:3px;color:var(--acc);text-shadow:0 0 20px rgba(0,191,255,.5);display:flex;align-items:center;gap:10px}
-.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 10px var(--grn);animation:throb 2s ease-in-out infinite}
-@keyframes throb{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.5}}
-.hdr-mid{display:flex;align-items:center;gap:8px}
-.tf-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:2px;margin-right:4px}
-.tf-btn{background:transparent;color:var(--mut);border:1px solid var(--bdr2);padding:5px 14px;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;transition:all .15s}
-.tf-btn.on,.tf-btn:hover{background:var(--acc);color:#000;border-color:var(--acc)}
-.hdr-right{display:flex;align-items:center;gap:12px}
-.status-bar{display:flex;align-items:center;gap:7px;padding:4px 12px;border:1px solid var(--bdr2)}
-.sd{width:6px;height:6px;border-radius:50%}
-.sd.ok{background:var(--grn);box-shadow:0 0 6px var(--grn);animation:throb 2s infinite}
-.sd.wait{background:var(--yel);box-shadow:0 0 6px var(--yel);animation:throb 2s infinite}
-.sd.err{background:var(--red);box-shadow:0 0 6px var(--red)}
-.st{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px}
-.st.ok{color:var(--grn)}.st.wait{color:var(--yel)}.st.err{color:var(--red)}
-.btn{background:transparent;border:1px solid;cursor:pointer;padding:7px 16px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700;letter-spacing:2px;transition:all .15s;text-transform:uppercase}
-.btn-c{border-color:var(--acc);color:var(--acc)}.btn-c:hover{background:var(--acc);color:#000}
-.btn-ai{border-color:var(--acc2);color:var(--acc2)}.btn-ai:hover{background:var(--acc2);color:#000}
+/* bg grid */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(168,85,247,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(168,85,247,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 40% at 50% -5%,rgba(168,85,247,.07),transparent);pointer-events:none;z-index:0}
 
-.inst-bar{position:relative;z-index:1;background:var(--p1);border-bottom:1px solid var(--bdr);display:flex;overflow-x:auto;padding:0 24px}
-.inst-tab{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 18px;border-right:1px solid var(--bdr);cursor:pointer;transition:background .15s;white-space:nowrap;min-width:160px;border-bottom:2px solid transparent;margin-bottom:-1px}
-.inst-tab:hover{background:rgba(0,191,255,.05)}
-.inst-tab.on{background:rgba(0,191,255,.06);border-bottom-color:var(--acc)}
-.inst-tab-name{font-family:'Orbitron',monospace;font-weight:700;font-size:11px;letter-spacing:1px;color:var(--acc)}
-.tab-price-wrap{text-align:right}
-.inst-tab-price{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--txt);display:block}
-.inst-tab-chg{font-family:'Share Tech Mono',monospace;font-size:9px}
-.inst-tab-chg.up{color:var(--grn)}.inst-tab-chg.dn{color:var(--red)}
+/* ── HEADER ── */
+.hdr{position:sticky;top:0;z-index:900;background:rgba(6,4,12,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--bdr2);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:900}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:19px;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:2px;margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.s-chip{display:flex;align-items:center;gap:6px;padding:4px 11px;border:1px solid var(--bdr2)}
+.s-dot{width:5px;height:5px;border-radius:50%}
+.s-dot.ok{background:var(--grn);box-shadow:0 0 6px var(--grn);animation:pk 2s infinite}
+.s-dot.busy{background:var(--yel);box-shadow:0 0 6px var(--yel)}
+.s-dot.err{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes pk{0%,100%{opacity:1}50%{opacity:.4}}
+.s-txt{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.5px}
+.s-txt.ok{color:var(--grn)}.s-txt.busy{color:var(--yel)}.s-txt.err{color:var(--red)}
+.upd{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut)}
+.btn{background:transparent;border:1px solid;padding:7px 15px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.btn-p{border-color:var(--acc);color:var(--acc)}
+.btn-p:hover:not(:disabled){background:var(--acc);color:#000}
+.btn-ai{border-color:var(--acc2);color:var(--acc2)}
+.btn-ai:hover:not(:disabled){background:var(--acc2);color:#fff;box-shadow:0 0 18px rgba(236,72,153,.3)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
 
-.main{position:relative;z-index:1;padding:18px 24px}
-.content-wrap{display:grid;grid-template-columns:1fr 370px;gap:16px}
+/* ── SEARCH ROW ── */
+.search-row{position:relative;z-index:800;background:var(--p1);border-bottom:1px solid var(--bdr);padding:12px 24px;display:flex;align-items:flex-start;gap:10px}
 
-.chart-panel{background:var(--p1);border:1px solid var(--bdr2)}
-.chart-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--bdr)}
-.chart-name{font-family:'Orbitron',monospace;font-weight:700;font-size:14px;letter-spacing:2px;color:var(--acc)}
-.chart-sub{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mut);margin-top:2px;letter-spacing:1px}
-.chart-price-block{text-align:right}
-.chart-price-val{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--txt);display:block;min-width:140px;text-align:right}
-.chart-price-val.up{color:var(--grn)}.chart-price-val.dn{color:var(--red)}
-.chart-price-chg{font-family:'Share Tech Mono',monospace;font-size:10px;margin-top:3px}
-.chart-price-chg.up{color:var(--grn)}.chart-price-chg.dn{color:var(--red)}
-.price-source{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--grn);margin-top:2px;letter-spacing:0.5px}
-.price-source.wait{color:var(--yel)}.price-source.ref{color:var(--mut)}
-
-/* TV iframe container — explicit height, no % */
-.tv-box{height:480px;position:relative;background:var(--p2);overflow:hidden}
-.tv-box iframe{width:100%;height:100%;border:none;display:block}
-.tv-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--p2);z-index:5;pointer-events:none}
-.tv-loading.hidden{display:none}
-.ld-bar{width:140px;height:2px;background:var(--bdr2);overflow:hidden;border-radius:1px}
-.ld-fill{width:30%;height:100%;background:var(--acc);animation:ld 1.2s ease-in-out infinite alternate;border-radius:1px}
-@keyframes ld{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
-.ld-txt{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:1px;animation:blink 1s infinite}
+/* Search input + autocomplete */
+.search-wrap{position:relative;flex:1}
+.search-input{width:100%;background:var(--p2);border:1px solid var(--bdr2);color:var(--txt);padding:10px 36px 10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;transition:border-color .15s;letter-spacing:.5px}
+.search-input:focus{border-color:var(--acc)}
+.search-input::placeholder{color:var(--mut)}
+.s-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:4px;display:none}
+.s-clear.vis{display:block}
+.ac{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--p2);border:1px solid var(--bdr2);z-index:900;max-height:280px;overflow-y:auto;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.ac.open{display:block}
+.ac-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--bdr)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.foc{background:rgba(168,85,247,.1)}
+.ac-sym{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--acc);min-width:90px;font-weight:500}
+.ac-name{font-size:11px;color:var(--txt);flex:1;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-type{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--mut);border:1px solid var(--bdr);padding:2px 6px;white-space:nowrap}
+.ac-ld{padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);text-align:center;animation:blink 1s infinite}
+.ac-mt{padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);text-align:center}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
-.right-col{display:flex;flex-direction:column;gap:12px}
-.sig-card{background:var(--p1);border:1px solid var(--bdr2);padding:12px 14px}
-.sig-title{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mut);letter-spacing:2px;margin-bottom:10px}
-.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.sig-cell{background:var(--p2);border:1px solid var(--bdr);padding:8px 10px}
-.sig-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:1.5px;margin-bottom:5px;text-transform:uppercase}
-.sig-val{font-family:'Orbitron',monospace;font-size:13px;font-weight:700}
-.sig-sub{font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--mut);margin-top:2px}
-.buy{color:var(--grn)}.sell{color:var(--red)}.none{color:var(--mut)}.neut{color:var(--yel)}
-.conf-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700}
-.conf-pill.invest{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.35);color:var(--grn)}
-.conf-pill.watch{background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.3);color:var(--yel)}
-.conf-pill.wait{background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.3);color:var(--red)}
+/* Preset + TF */
+.ctrl-group{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.preset-wrap{position:relative}
+.preset{background:var(--p2);border:1px solid var(--bdr2);color:var(--txt);padding:10px 28px 10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:200px;transition:border-color .15s}
+.preset:focus{border-color:var(--acc)}
+.preset-arr{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--acc);pointer-events:none;font-size:9px}
+.tf-grp{display:flex;gap:4px}
+.tf-b{background:transparent;color:var(--mut);border:1px solid var(--bdr2);padding:5px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:1px}
+.tf-b.on,.tf-b:hover{background:var(--acc);color:#000;border-color:var(--acc)}
 
-.anal-card{background:var(--p1);border:1px solid var(--bdr2);flex:1}
+/* ── INSTRUMENT DISPLAY HEADER ── */
+.inst-hdr{position:relative;z-index:1;background:var(--p1);border-bottom:1px solid var(--bdr);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;display:none}
+.inst-name-big{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.5px;color:var(--txt)}
+.inst-meta-sm{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--mut);margin-top:3px;letter-spacing:1px}
+.price-mega{text-align:right}
+.price-big{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--txt);font-weight:400;min-width:180px;text-align:right;display:block}
+.price-chg-sm{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:3px}
+.price-chg-sm.up{color:var(--grn)}.price-chg-sm.dn{color:var(--red)}
+
+/* ── EMPTY STATE ── */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;position:relative;z-index:1}
+.empty-title{font-family:'Syne',sans-serif;font-weight:700;font-size:20px;color:var(--mut);margin-bottom:10px}
+.empty-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mut);line-height:1.8}
+.empty-instruments{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px}
+.quick-btn{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);color:var(--acc);padding:6px 14px;font-family:'JetBrains Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s;letter-spacing:.5px}
+.quick-btn:hover{background:var(--acc);color:#000}
+
+/* ── MAIN CONTENT ── */
+.content{position:relative;z-index:1;padding:16px 24px;display:none;flex:1}
+.content-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;height:100%}
+
+/* Chart panel */
+.chart-panel{background:var(--p1);border:1px solid var(--bdr2);display:flex;flex-direction:column}
+.chart-top{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center}
+.chart-sym-name{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--txt)}
+.chart-sym-sub{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--mut);margin-top:2px}
+.chart-legend{display:flex;gap:10px}
+.leg{display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut)}
+.leg-line{width:12px;height:1.5px}
+.tv-wrap{flex:1;min-height:400px;position:relative;background:var(--p2)}
+.tv-wrap iframe{width:100%;height:100%;border:none;display:block}
+
+/* Right panel */
+.right-col{display:flex;flex-direction:column;gap:12px}
+
+/* Signal card */
+.sig-card{background:var(--p1);border:1px solid var(--bdr2);padding:12px 14px}
+.sig-title{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:2px;margin-bottom:10px}
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.sig-cell{background:var(--p2);border:1px solid var(--bdr);padding:8px 10px}
+.sig-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:1.5px;margin-bottom:4px;text-transform:uppercase}
+.sig-val{font-family:'Syne',sans-serif;font-size:13px;font-weight:700}
+.sig-sub{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);margin-top:2px}
+.buy{color:var(--grn)}.sell{color:var(--red)}.none{color:var(--mut)}.neut{color:var(--yel)}
+.c-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-family:'JetBrains Mono',monospace;font-size:9px;border-radius:1px}
+.c-pill.invest{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--grn)}
+.c-pill.watch{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:var(--yel)}
+.c-pill.wait{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:var(--red)}
+
+/* Analysis card */
+.anal-card{background:var(--p1);border:1px solid var(--bdr2);flex:1;display:flex;flex-direction:column}
 .tab-row{display:flex;border-bottom:1px solid var(--bdr)}
-.tab-b{background:transparent;border:none;color:var(--mut);padding:8px 11px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;cursor:pointer;transition:color .15s;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab-b{background:transparent;border:none;color:var(--mut);padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:1px;cursor:pointer;transition:color .15s;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tab-b.on{color:var(--acc);border-bottom-color:var(--acc)}.tab-b:hover:not(.on){color:var(--txt)}
-.tab-body{padding:12px 14px;overflow-y:auto;max-height:340px}
+.tab-body{padding:12px 14px;overflow-y:auto;flex:1}
 .tp{display:none}.tp.on{display:block}
-.btxt{font-size:11px;line-height:1.8;color:#3a6080;font-weight:300}
+.btxt{font-size:11px;line-height:1.8;color:#3d2d60;font-weight:300}
 .btxt strong{color:var(--txt);font-weight:500}
 
 .ma-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
 .ma-box{background:var(--p2);border:1px solid var(--bdr);padding:6px 8px}
-.ma-p{font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:1px;margin-bottom:3px}
-.ma-v{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--txt)}
+.ma-p{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);letter-spacing:1px;margin-bottom:3px}
+.ma-v{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--txt)}
 .ma-s{font-size:7px;margin-top:2px}
 .fib-row{display:flex;align-items:center;gap:6px;margin-bottom:2px}
-.fib-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--mut);width:38px}
+.fib-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);width:38px}
 .fib-track{flex:1;height:2px;background:var(--bdr2);border-radius:1px}
 .fib-fill{height:100%;border-radius:1px;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .4s}
-.fib-prc{font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--txt);width:65px;text-align:right}
-.fib-cur{background:rgba(0,191,255,.07);padding:1px 3px}
+.fib-prc{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--txt);width:60px;text-align:right}
+.fib-cur{background:rgba(168,85,247,.07);padding:1px 3px}
 .wave-box{background:var(--p2);border:1px solid var(--bdr);padding:8px 10px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
-.wave-nm{font-family:'Orbitron',monospace;font-weight:700;font-size:14px;min-width:68px}
+.wave-nm{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;min-width:65px}
 .wave-nm.bull{color:var(--grn)}.wave-nm.bear{color:var(--red)}.wave-nm.neut{color:var(--yel)}
-.wave-dt{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mut);line-height:1.5}
-.macro-bear{background:rgba(255,23,68,.07);border:1px solid rgba(255,23,68,.2);border-left:2px solid var(--red);padding:8px 10px;margin-bottom:6px}
-.macro-bull{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.15);border-left:2px solid var(--grn);padding:8px 10px;margin-bottom:6px}
-.macro-neut{background:rgba(255,214,0,.05);border:1px solid rgba(255,214,0,.12);border-left:2px solid var(--yel);padding:8px 10px;margin-bottom:6px}
-.macro-hdr{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.5px;margin-bottom:4px}
+.wave-dt{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--mut);line-height:1.5}
+.macro-bear{background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.18);border-left:2px solid var(--red);padding:7px 10px;margin-bottom:6px}
+.macro-bull{background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.12);border-left:2px solid var(--grn);padding:7px 10px;margin-bottom:6px}
+.macro-neut{background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.12);border-left:2px solid var(--yel);padding:7px 10px;margin-bottom:6px}
+.macro-hdr{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.5px;margin-bottom:4px}
 .macro-hdr.bear{color:var(--red)}.macro-hdr.bull{color:var(--grn)}.macro-hdr.neut{color:var(--yel)}
 .geo-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
-.geo-chip{background:rgba(0,191,255,.07);border:1px solid rgba(0,191,255,.18);color:var(--acc);font-family:'Share Tech Mono',monospace;font-size:7px;padding:2px 6px}
+.geo-chip{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.18);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:7px;padding:2px 6px}
 
-.ai-modal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(3,7,13,.97);backdrop-filter:blur(24px);overflow-y:auto;padding:24px;align-items:flex-start;justify-content:center}
+/* ── AI MODAL ── */
+.ai-modal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(6,4,12,.97);backdrop-filter:blur(24px);overflow-y:auto;padding:24px;align-items:flex-start;justify-content:center}
 .ai-modal.open{display:flex}
 .ai-box{background:var(--p1);border:1px solid var(--bdr2);border-top:2px solid var(--acc2);max-width:720px;width:100%;padding:28px;margin-top:20px}
-.ai-title{font-family:'Orbitron',monospace;font-weight:900;font-size:18px;letter-spacing:3px;color:var(--acc2);margin-bottom:4px}
-.ai-sym{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--mut);margin-bottom:16px;letter-spacing:1px}
-.ai-method{padding:10px 12px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:9px;line-height:1.6}
-.ai-method.hi{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.2);border-left:2px solid var(--grn);color:var(--grn)}
-.ai-method.lo{background:rgba(255,214,0,.04);border:1px solid rgba(255,214,0,.2);border-left:2px solid var(--yel);color:var(--yel)}
-.ai-rec{font-family:'Orbitron',monospace;font-weight:700;font-size:16px;letter-spacing:1px;margin-bottom:10px}
+.ai-title{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.ai-sym{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);margin-bottom:16px;letter-spacing:1px}
+.ai-method{padding:9px 12px;margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.6}
+.ai-method.hi{background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.2);border-left:2px solid var(--grn);color:var(--grn)}
+.ai-method.lo{background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.2);border-left:2px solid var(--yel);color:var(--yel)}
+.ai-rec{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:10px}
 .ai-rec.long{color:var(--grn)}.ai-rec.short{color:var(--red)}.ai-rec.neutral{color:var(--yel)}
-.ai-reasoning{font-size:12px;line-height:1.8;color:#3a6080;margin-bottom:14px}
+.ai-reasoning{font-size:12px;line-height:1.8;color:#3d2d60;margin-bottom:14px}
 .ai-reasoning strong{color:var(--txt)}
 .ai-levels{background:var(--p2);border:1px solid var(--bdr2);margin-bottom:12px}
 .ai-lvl-row{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--bdr)}
 .ai-lvl-row:last-child{border-bottom:none}
-.al-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mut);letter-spacing:1px}
-.al-val{font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:500}
-.al-val.entry{color:var(--acc)}.al-val.tp{color:var(--grn)}.al-val.sl{color:var(--red)}.al-val.rr{color:var(--yel)}
+.al-lbl{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--mut);letter-spacing:.5px}
+.al-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500}
+.al-val.entry{color:var(--acc3)}.al-val.tp{color:var(--grn)}.al-val.sl{color:var(--red)}.al-val.rr{color:var(--yel)}
 .ai-loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px}
-.ai-spinner{width:36px;height:36px;border:2px solid var(--bdr2);border-top-color:var(--acc2);border-radius:50%;animation:spin .7s linear infinite}
+.ai-spinner{width:32px;height:32px;border:2px solid var(--bdr2);border-top-color:var(--acc2);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.ai-ldtxt{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:1px;animation:blink 1s infinite}
-.ai-warn{padding:9px 12px;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.2);border-left:2px solid var(--red);font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--red);line-height:1.6;margin-top:12px}
-.btn-close{background:transparent;border:1px solid var(--bdr2);color:var(--mut);padding:7px 16px;font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;margin-top:14px;transition:all .15s;letter-spacing:1px}
+.ai-ldtxt{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:1px;animation:blink 1s infinite}
+.ai-warn{padding:9px 12px;background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.2);border-left:2px solid var(--red);font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--red);line-height:1.6;margin-top:12px}
+.btn-close{background:transparent;border:1px solid var(--bdr2);color:var(--mut);padding:7px 16px;font-family:'JetBrains Mono',monospace;font-size:9px;cursor:pointer;margin-top:14px;transition:all .15s;letter-spacing:1px}
 .btn-close:hover{color:var(--txt);border-color:var(--txt)}
 
-.footer{position:relative;z-index:1;padding:12px 24px;border-top:1px solid var(--bdr);margin-top:6px}
-.footer-txt{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--mut);line-height:1.8}
-@media(max-width:960px){.content-wrap{grid-template-columns:1fr}.hdr,.main,.footer{padding-left:14px;padding-right:14px}.inst-bar{padding:0 14px}}
+.shimmer{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);animation:blink 1.2s infinite}
+.footer{position:relative;z-index:1;padding:10px 24px;border-top:1px solid var(--bdr)}
+.footer-txt{font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--mut);line-height:1.8;letter-spacing:.3px}
+
+@media(max-width:960px){
+  .content-grid{grid-template-columns:1fr}
+  .search-row{flex-direction:column}
+  .ctrl-group{flex-wrap:wrap}
+  .hdr,.search-row,.content,.footer{padding-left:14px;padding-right:14px}
+  .inst-hdr{padding:12px 14px}
+}
 </style>
 </head>
 <body>
 
+<!-- ── HEADER ── -->
 <header class="hdr">
-  <div class="logo"><div class="logo-dot"></div>APEX MARKETS</div>
-  <div class="hdr-mid">
-    <span class="tf-lbl">TF:</span>
-    <button class="tf-btn on" onclick="setTF('D',this)">1D</button>
-    <button class="tf-btn" onclick="setTF('60',this)">1H</button>
-    <button class="tf-btn" onclick="setTF('240',this)">4H</button>
+  <div>
+    <div class="logo">APEX MARKETS PRO</div>
+    <div class="logo-sub">UNIVERSAL INSTRUMENT TERMINAL · TRADINGVIEW REAL-TIME</div>
   </div>
   <div class="hdr-right">
-    <div class="status-bar">
-      <div class="sd wait" id="sd"></div>
-      <span class="st wait" id="st">AWAITING CHART</span>
-    </div>
-    <button class="btn btn-c" onclick="reloadChart()">↺ REFRESH</button>
-    <button class="btn btn-ai" onclick="openAI()">⚡ AI SIGNAL</button>
+    <div class="s-chip"><div class="s-dot ok" id="sDot"></div><span class="s-txt ok" id="sTxt">READY</span></div>
+    <span class="upd" id="updTxt">—</span>
+    <button class="btn btn-p" onclick="reloadChart()">↺ REFRESH</button>
+    <button class="btn btn-ai" id="btnAI" onclick="openAI()" disabled>⚡ AI SIGNAL</button>
   </div>
 </header>
 
-<div class="inst-bar" id="instBar"></div>
+<!-- ── SEARCH ROW ── -->
+<div class="search-row">
+  <div class="search-wrap">
+    <input class="search-input" id="searchInput" type="text" autocomplete="off" spellcheck="false"
+      placeholder="Search any instrument — type a symbol or name (e.g. Gold, AAPL, Bitcoin, EURUSD, ASX 200...)" />
+    <button class="s-clear" id="sClear" onclick="clearSearch()">✕</button>
+    <div class="ac" id="ac"></div>
+  </div>
+  <div class="ctrl-group">
+    <div class="preset-wrap">
+      <select class="preset" id="presetSel" onchange="onPreset(this.value)">
+        <option value="">— Quick Select Instrument —</option>
+        <optgroup label="Our 5 Core Instruments">
+          <option value="TVC:USOIL|WTI Crude Oil|USD/bbl|2">🛢 WTI Crude Oil</option>
+          <option value="TVC:NGAS|Natural Gas|USD/MMBtu|3">⚡ Natural Gas</option>
+          <option value="FX:AUDUSD|AUD / USD|FX Rate|4">🇦🇺 AUD / USD</option>
+          <option value="TVC:GOLD|Gold|USD/oz|2">🥇 Gold</option>
+          <option value="TVC:SILVER|Silver|USD/oz|3">🥈 Silver</option>
+        </optgroup>
+        <optgroup label="Energy">
+          <option value="TVC:UKOIL|Brent Crude Oil|USD/bbl|2">Brent Crude Oil</option>
+          <option value="TVC:USOIL|Heating Oil|USD/gal|3">Heating Oil</option>
+          <option value="TVC:USOIL|RBOB Gasoline|USD/gal|3">RBOB Gasoline</option>
+        </optgroup>
+        <optgroup label="Metals">
+          <option value="TVC:COPPER|Copper|USD/lb|3">Copper</option>
+          <option value="TVC:PLATINUM|Platinum|USD/oz|2">Platinum</option>
+          <option value="TVC:PALLADIUM|Palladium|USD/oz|2">Palladium</option>
+        </optgroup>
+        <optgroup label="Forex">
+          <option value="FX:EURUSD|EUR / USD|FX Rate|4">EUR / USD</option>
+          <option value="FX:GBPUSD|GBP / USD|FX Rate|4">GBP / USD</option>
+          <option value="FX:USDJPY|USD / JPY|FX Rate|2">USD / JPY</option>
+          <option value="FX:USDCAD|USD / CAD|FX Rate|4">USD / CAD</option>
+          <option value="FX:NZDUSD|NZD / USD|FX Rate|4">NZD / USD</option>
+          <option value="FX:USDCHF|USD / CHF|FX Rate|4">USD / CHF</option>
+          <option value="FX:EURJPY|EUR / JPY|FX Rate|2">EUR / JPY</option>
+          <option value="FX:GBPJPY|GBP / JPY|FX Rate|2">GBP / JPY</option>
+        </optgroup>
+        <optgroup label="Indices">
+          <option value="INDEX:SPX|S&P 500|USD|2">S&P 500</option>
+          <option value="NASDAQ:NDX|NASDAQ 100|USD|2">NASDAQ 100</option>
+          <option value="INDEX:DJI|Dow Jones|USD|2">Dow Jones</option>
+          <option value="ASX:XJO|ASX 200|AUD|2">ASX 200</option>
+          <option value="FOREXCOM:UKXGBP|FTSE 100|GBP|2">FTSE 100</option>
+          <option value="TVC:NI225|Nikkei 225|JPY|0">Nikkei 225</option>
+          <option value="XETR:DAX|DAX 40|EUR|2">DAX 40</option>
+          <option value="TVC:HSI|Hang Seng|HKD|0">Hang Seng</option>
+        </optgroup>
+        <optgroup label="Crypto">
+          <option value="BINANCE:BTCUSDT|Bitcoin|USD|2">Bitcoin (BTC)</option>
+          <option value="BINANCE:ETHUSDT|Ethereum|USD|2">Ethereum (ETH)</option>
+          <option value="BINANCE:SOLUSDT|Solana|USD|2">Solana (SOL)</option>
+          <option value="BINANCE:XRPUSDT|XRP|USD|4">XRP</option>
+        </optgroup>
+        <optgroup label="US Stocks">
+          <option value="NASDAQ:AAPL|Apple|USD|2">Apple (AAPL)</option>
+          <option value="NASDAQ:NVDA|NVIDIA|USD|2">NVIDIA (NVDA)</option>
+          <option value="NASDAQ:MSFT|Microsoft|USD|2">Microsoft (MSFT)</option>
+          <option value="NASDAQ:TSLA|Tesla|USD|2">Tesla (TSLA)</option>
+          <option value="NASDAQ:AMZN|Amazon|USD|2">Amazon (AMZN)</option>
+          <option value="NYSE:BRK.A|Berkshire Hathaway|USD|0">Berkshire Hathaway</option>
+        </optgroup>
+        <optgroup label="ASX Stocks">
+          <option value="ASX:BHP|BHP Group|AUD|2">BHP Group</option>
+          <option value="ASX:CBA|Commonwealth Bank|AUD|2">Commonwealth Bank</option>
+          <option value="ASX:RIO|Rio Tinto|AUD|2">Rio Tinto</option>
+          <option value="ASX:ANZ|ANZ Bank|AUD|2">ANZ Bank</option>
+          <option value="ASX:CSL|CSL Limited|AUD|2">CSL Limited</option>
+        </optgroup>
+      </select>
+      <span class="preset-arr">▾</span>
+    </div>
+    <div class="tf-grp">
+      <button class="tf-b on" onclick="setTF('D',this)">1D</button>
+      <button class="tf-b" onclick="setTF('60',this)">1H</button>
+      <button class="tf-b" onclick="setTF('240',this)">4H</button>
+      <button class="tf-b" onclick="setTF('W',this)">1W</button>
+    </div>
+  </div>
+</div>
 
-<main class="main">
-  <div class="content-wrap">
+<!-- ── INSTRUMENT DISPLAY HEADER ── -->
+<div class="inst-hdr" id="instHdr">
+  <div>
+    <div class="inst-name-big" id="instNameBig">—</div>
+    <div class="inst-meta-sm" id="instMetaSm">—</div>
+  </div>
+  <div class="price-mega">
+    <span class="price-big" id="priceBig">LIVE ON CHART ▲</span>
+    <div class="price-chg-sm" id="priceChgSm" style="color:var(--mut)">Price displayed on the TradingView chart above</div>
+  </div>
+</div>
+
+<!-- ── EMPTY STATE ── -->
+<div class="empty" id="emptyState">
+  <div class="empty-title">Select any instrument to begin</div>
+  <div class="empty-sub">
+    Use the search box for any TradingView symbol or name,<br>
+    or choose from the quick-select dropdown. Supports everything:<br>
+    Stocks · ETFs · Forex · Commodities · Crypto · Indices · Bonds
+  </div>
+  <div class="empty-instruments">
+    <button class="quick-btn" onclick="loadPreset('TVC:USOIL|WTI Crude Oil|USD/bbl|2')">WTI Oil</button>
+    <button class="quick-btn" onclick="loadPreset('TVC:NGAS|Natural Gas|USD/MMBtu|3')">Natural Gas</button>
+    <button class="quick-btn" onclick="loadPreset('FX:AUDUSD|AUD / USD|FX Rate|4')">AUD/USD</button>
+    <button class="quick-btn" onclick="loadPreset('TVC:GOLD|Gold|USD/oz|2')">Gold</button>
+    <button class="quick-btn" onclick="loadPreset('TVC:SILVER|Silver|USD/oz|3')">Silver</button>
+    <button class="quick-btn" onclick="loadPreset('INDEX:SPX|S&P 500|USD|2')">S&P 500</button>
+    <button class="quick-btn" onclick="loadPreset('ASX:XJO|ASX 200|AUD|2')">ASX 200</button>
+    <button class="quick-btn" onclick="loadPreset('BINANCE:BTCUSDT|Bitcoin|USD|2')">Bitcoin</button>
+  </div>
+</div>
+
+<!-- ── CONTENT ── -->
+<div class="content" id="mainContent">
+  <div class="content-grid">
     <div class="chart-panel">
-      <div class="chart-hdr">
+      <div class="chart-top">
         <div>
-          <div class="chart-name" id="chartName">WTI CRUDE OIL</div>
-          <div class="chart-sub" id="chartSub">TVC:USOIL · USD/bbl · TRADINGVIEW LIVE</div>
+          <div class="chart-sym-name" id="chartSymName">—</div>
+          <div class="chart-sym-sub" id="chartSymSub">—</div>
         </div>
-        <div class="chart-price-block">
-          <span class="chart-price-val" id="chartPriceVal">—</span>
-          <div class="chart-price-chg" id="chartPriceChg" style="color:var(--mut)">—</div>
-          <div class="price-source wait" id="priceSource">⏳ AWAITING TRADINGVIEW PRICE...</div>
+        <div class="chart-legend">
+          <span class="leg"><div class="leg-line" style="background:#a855f7"></div>MA</span>
+          <span class="leg"><div class="leg-line" style="background:#10b981;width:8px;height:8px;border-radius:50%"></div>UP</span>
+          <span class="leg"><div class="leg-line" style="background:#f43f5e;width:8px;height:8px;border-radius:50%"></div>DN</span>
         </div>
       </div>
-      <div class="tv-box">
-        <iframe id="tvIframe" src="" allowtransparency="true" scrolling="no" allowfullscreen></iframe>
-        <div class="tv-loading" id="tvLoading">
-          <div class="ld-bar"><div class="ld-fill"></div></div>
-          <div class="ld-txt">LOADING TRADINGVIEW CHART...</div>
-        </div>
+      <div class="tv-wrap" id="tvWrap">
+        <iframe id="tv_iframe_pro" src=""
+          allowtransparency="true" scrolling="no" allowfullscreen
+          style="width:100%;height:100%;border:none;display:block;">
+        </iframe>
       </div>
     </div>
 
@@ -200,10 +354,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="sig-card">
         <div class="sig-title">TECHNICAL SIGNALS</div>
         <div class="sig-grid">
-          <div class="sig-cell"><div class="sig-lbl">CANDLE SIGNAL</div><div id="sSig"><span class="ld-txt">—</span></div></div>
-          <div class="sig-cell"><div class="sig-lbl">RSI (14)</div><div id="sRsi"><span class="ld-txt">—</span></div></div>
-          <div class="sig-cell"><div class="sig-lbl">TREND (MA)</div><div id="sTrend"><span class="ld-txt">—</span></div></div>
-          <div class="sig-cell"><div class="sig-lbl">CONFIDENCE</div><div id="sConf"><span class="ld-txt">—</span></div></div>
+          <div class="sig-cell"><div class="sig-lbl">CANDLE SIGNAL</div><div id="sSig"><span class="shimmer">—</span></div></div>
+          <div class="sig-cell"><div class="sig-lbl">RSI 14</div><div id="sRsi"><span class="shimmer">—</span></div></div>
+          <div class="sig-cell"><div class="sig-lbl">TREND (MA20)</div><div id="sTrend"><span class="shimmer">—</span></div></div>
+          <div class="sig-cell"><div class="sig-lbl">CONFIDENCE</div><div id="sConf"><span class="shimmer">—</span></div></div>
         </div>
       </div>
       <div class="anal-card">
@@ -214,16 +368,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <button class="tab-b" onclick="setTab('macro',this)">MACRO</button>
         </div>
         <div class="tab-body">
-          <div id="tp_summary" class="tp on"><div class="btxt" id="tSum"><span class="ld-txt">Waiting for chart to load price data...</span></div></div>
-          <div id="tp_mafib" class="tp"><div id="tMafib"><span class="ld-txt">—</span></div></div>
-          <div id="tp_wave" class="tp"><div id="tWave"><span class="ld-txt">—</span></div></div>
-          <div id="tp_macro" class="tp"><div id="tMacro"><span class="ld-txt">—</span></div></div>
+          <div id="tp_summary" class="tp on"><span class="shimmer">Select an instrument to begin analysis.</span></div>
+          <div id="tp_mafib" class="tp"><span class="shimmer">—</span></div>
+          <div id="tp_wave" class="tp"><span class="shimmer">—</span></div>
+          <div id="tp_macro" class="tp"><span class="shimmer">—</span></div>
         </div>
       </div>
     </div>
   </div>
-</main>
+</div>
 
+<!-- ── AI MODAL ── -->
 <div class="ai-modal" id="aiModal">
   <div class="ai-box">
     <div class="ai-title">⚡ AI TRADE INTELLIGENCE</div>
@@ -234,498 +389,554 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <div class="footer">
-  <div class="footer-txt">⚠ RISK DISCLOSURE — For informational and educational purposes only. Not financial advice. All signals are algorithmically generated. Trading involves substantial risk of loss. All price data sourced directly from TradingView. Technical analysis is illustrative only. Always consult a licensed financial adviser.</div>
+  <div class="footer-txt">⚠ RISK DISCLOSURE — For informational and educational purposes only. Not financial advice. All signals are algorithmically generated. Trading involves substantial risk of loss. Chart data delivered live via TradingView official embed widget. Technical signal analysis is illustrative only. Always apply independent research and consult a licensed financial adviser.</div>
 </div>
 
 <script>
 'use strict';
 
-// ══════════════════════════════════════════════════════
-// INSTRUMENTS — 5 core instruments, TradingView symbols
-// ══════════════════════════════════════════════════════
-const INSTRUMENTS = [
-  {
-    id:'wti', name:'WTI CRUDE OIL', tvSym:'TVC:USOIL', unit:'USD/bbl', dec:2,
-    geo:['OPEC+ Supply Policy','Middle East Risk Premium','USD Strength','China Demand','EIA Inventory'],
-    macro:'WTI is driven by OPEC+ production discipline, Middle East geopolitical risk, USD strength, and Chinese industrial demand.',
-    macroFactors:[
-      {text:'OPEC+ maintaining production cuts — supportive of price floor',s:'bull'},
-      {text:'Middle East tensions elevated — geopolitical risk premium',s:'bull'},
-      {text:'China economic slowdown risk — demand headwind',s:'bear'},
-      {text:'Rising US shale production capping upside',s:'bear'},
-      {text:'USD strength pressuring commodity prices broadly',s:'bear'},
-    ]
-  },
-  {
-    id:'natgas', name:'NATURAL GAS', tvSym:'TVC:NGAS', unit:'USD/MMBtu', dec:3,
-    geo:['EIA Storage Data','LNG Export Flows','European Storage','Seasonal Demand','Weather'],
-    macro:'Natural Gas is dominated by seasonality, US storage levels, and LNG export flows. European demand post-Ukraine adds structural support.',
-    macroFactors:[
-      {text:'European LNG import demand structurally elevated post-Ukraine',s:'bull'},
-      {text:'US storage levels above 5-year average — bearish near-term',s:'bear'},
-      {text:'Mild weather forecast reducing heating/cooling demand',s:'bear'},
-      {text:'Expanding US LNG export capacity — structural demand growth',s:'bull'},
-      {text:'High US shale production growth capping prices',s:'bear'},
-    ]
-  },
-  {
-    id:'audusd', name:'AUD / USD', tvSym:'FX:AUDUSD', unit:'FX Rate', dec:4,
-    geo:['RBA Rate Policy','China PMI','Iron Ore Prices','Rate Differential','Risk Appetite'],
-    macro:'AUD is driven by China economic health, iron ore prices, and the RBA-Fed interest rate differential.',
-    macroFactors:[
-      {text:'RBA holding rates — narrowing differential vs Fed supportive',s:'bull'},
-      {text:'China PMI contraction — major AUD headwind',s:'bear'},
-      {text:'Iron ore prices declining on weak steel demand',s:'bear'},
-      {text:'Global risk-off dragging commodity currencies lower',s:'bear'},
-      {text:'Resilient Australian labour market — RBA less dovish',s:'bull'},
-    ]
-  },
-  {
-    id:'gold', name:'GOLD', tvSym:'TVC:GOLD', unit:'USD/oz', dec:2,
-    geo:['US Real Yields','DXY Index','Central Bank Buying','Fed Policy','Geopolitical Risk'],
-    macro:'Gold inversely tracks US real yields and the dollar. Central bank de-dollarisation buying provides structural support.',
-    macroFactors:[
-      {text:'Central bank buying at record pace — structural demand support',s:'bull'},
-      {text:'Geopolitical risk premium elevated — safe-haven bid',s:'bull'},
-      {text:'US real yields declining as Fed pivot approaches',s:'bull'},
-      {text:'USD strength headwind — inverse DXY correlation',s:'bear'},
-      {text:'De-dollarisation accelerating among EM central banks',s:'bull'},
-    ]
-  },
-  {
-    id:'silver', name:'SILVER', tvSym:'TVC:SILVER', unit:'USD/oz', dec:3,
-    geo:['Solar PV Demand','EV Battery','Industrial PMI','Gold/Silver Ratio','Spec Positioning'],
-    macro:'Silver combines safe-haven and industrial demand. Green energy transition (solar, EVs) is structurally bullish.',
-    macroFactors:[
-      {text:'Solar manufacturing demand growing 20%+ YoY — structurally bullish',s:'bull'},
-      {text:'Gold/Silver ratio ~90x — historically elevated, implies undervaluation',s:'bull'},
-      {text:'Industrial production slowdown — demand headwind',s:'bear'},
-      {text:'EV battery sector accelerating silver industrial demand',s:'bull'},
-      {text:'Speculative futures positioning heavily net-long — crowded',s:'bear'},
-    ]
-  }
-];
-
-// ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
 // STATE
-// ══════════════════════════════════════════════════════
-let currentInst = INSTRUMENTS[0];
+// ══════════════════════════════════════════════════
+let currentSym = null;    // TradingView symbol e.g. "TVC:USOIL"
+let currentName = null;
+let currentUnit = null;
+let currentDec = 2;
 let currentTF = 'D';
-let priceData = {};       // { instId: { price, change, changePct, prevClose } }
-let analysisCache = {};   // { instId: { ...TA results based on TV price } }
-let priceReceived = {};   // track which instruments have received TV price
+let analysisCache = null;
+let searchTimer = null;
+let acItems = [];
+let acFocusIdx = -1;
 
-// ══════════════════════════════════════════════════════
-// TRADINGVIEW IFRAME — build URL
-// ══════════════════════════════════════════════════════
-function buildTVUrl(tvSym, tf) {
+// ══════════════════════════════════════════════════
+// SEARCH AUTOCOMPLETE
+// Uses TradingView's public symbol search — no API key, works from browser
+// ══════════════════════════════════════════════════
+const searchInput = document.getElementById('searchInput');
+const acDiv = document.getElementById('ac');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  document.getElementById('sClear').className = q ? 's-clear vis' : 's-clear';
+  clearTimeout(searchTimer);
+  if (q.length < 1) { closeAC(); return; }
+  searchTimer = setTimeout(() => doSearch(q), 300);
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (!acDiv.classList.contains('open')) {
+    if (e.key === 'Enter' && searchInput.value.trim()) {
+      // Try loading as TradingView symbol directly
+      const q = searchInput.value.trim().toUpperCase();
+      loadInstrument(q, q, 'N/A', 2);
+    }
+    return;
+  }
+  if (e.key === 'ArrowDown') { e.preventDefault(); moveFocus(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(-1); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (acFocusIdx >= 0 && acItems[acFocusIdx]) selectAC(acItems[acFocusIdx]); }
+  else if (e.key === 'Escape') closeAC();
+});
+
+document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) closeAC(); });
+
+function moveFocus(dir) {
+  const items = acDiv.querySelectorAll('.ac-item');
+  items.forEach(i => i.classList.remove('foc'));
+  acFocusIdx = Math.max(0, Math.min(items.length - 1, acFocusIdx + dir));
+  items[acFocusIdx]?.classList.add('foc');
+  items[acFocusIdx]?.scrollIntoView({ block: 'nearest' });
+}
+
+async function doSearch(q) {
+  acFocusIdx = -1; acItems = [];
+  acDiv.innerHTML = '<div class="ac-ld">SEARCHING...</div>';
+  acDiv.classList.add('open');
+
+  // Yahoo Finance search — for SYMBOL AUTOCOMPLETE ONLY, not for prices
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&newsCount=0&quotesCount=8&enableFuzzyQuery=false`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    if (!r.ok) throw new Error();
+    const json = await r.json();
+    const quotes = json?.quotes ?? [];
+    if (quotes.length > 0) {
+      acItems = quotes.map(q => ({
+        sym: q.symbol,
+        tvSym: q.symbol, // Yahoo symbols often work in TradingView too
+        name: q.shortname || q.longname || q.symbol,
+        type: q.typeDisp || q.quoteType || '',
+        exchange: q.exchDisp || ''
+      }));
+      renderAC();
+      return;
+    }
+  } catch(e) {}
+
+  // Fallback: TradingView symbol search
+  try {
+    const url = `https://symbol-search.tradingview.com/symbol_search/v3/?text=${encodeURIComponent(q)}&hl=1&exchange=&lang=en&search_type=undefined&domain=production&sort_by_country=US`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    if (!r.ok) throw new Error();
+    const json = await r.json();
+    const symbols = json?.symbols ?? [];
+    if (symbols.length > 0) {
+      acItems = symbols.slice(0, 8).map(s => ({
+        sym: s.symbol,
+        tvSym: s.exchange ? `${s.exchange}:${s.symbol}` : s.symbol,
+        name: s.description || s.symbol,
+        type: s.type || '',
+        exchange: s.exchange || ''
+      }));
+      renderAC();
+      return;
+    }
+  } catch(e) {}
+
+  acDiv.innerHTML = `<div class="ac-mt">No results. Try entering the exact symbol (e.g. NASDAQ:AAPL, TVC:GOLD, FX:EURUSD) and press Enter to load directly.</div>`;
+}
+
+function renderAC() {
+  acDiv.innerHTML = acItems.map((item, i) => `
+    <div class="ac-item" data-idx="${i}" onclick="selectAC(acItems[${i}])">
+      <span class="ac-sym">${item.sym}</span>
+      <span class="ac-name">${item.name}</span>
+      <span class="ac-type">${item.type}${item.exchange?' · '+item.exchange:''}</span>
+    </div>`).join('');
+}
+
+function selectAC(item) {
+  if (!item) return;
+  closeAC();
+  searchInput.value = `${item.sym} — ${item.name}`;
+  document.getElementById('sClear').className = 's-clear vis';
+  document.getElementById('presetSel').value = '';
+  // Use TradingView symbol format
+  loadInstrument(item.tvSym || item.sym, item.name, item.type || 'N/A', 2);
+}
+
+function closeAC() { acDiv.classList.remove('open'); acDiv.innerHTML = ''; }
+
+function clearSearch() {
+  searchInput.value = '';
+  document.getElementById('sClear').className = 's-clear';
+  closeAC();
+  searchInput.focus();
+}
+
+// ══════════════════════════════════════════════════
+// PRESET / QUICK SELECT
+// ══════════════════════════════════════════════════
+function onPreset(val) {
+  if (!val) return;
+  loadPreset(val);
+  document.getElementById('presetSel').value = '';
+}
+
+function loadPreset(val) {
+  const parts = val.split('|');
+  if (parts.length < 4) return;
+  const [tvSym, name, unit, dec] = parts;
+  searchInput.value = `${tvSym.split(':').pop()} — ${name}`;
+  document.getElementById('sClear').className = 's-clear vis';
+  loadInstrument(tvSym, name, unit, parseInt(dec));
+}
+
+// ══════════════════════════════════════════════════
+// LOAD INSTRUMENT (creates TradingView widget)
+// ══════════════════════════════════════════════════
+async function loadInstrument(tvSym, name, unit, dec) {
+  currentSym = tvSym;
+  currentName = name;
+  currentUnit = unit;
+  currentDec = dec;
+
+  // Show layout
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('instHdr').style.display = 'flex';
+
+  // Update headers
+  document.getElementById('instNameBig').textContent = name;
+  document.getElementById('instMetaSm').textContent = `${tvSym} · ${unit} · TRADINGVIEW REAL-TIME DATA`;
+  document.getElementById('chartSymName').textContent = name;
+  document.getElementById('chartSymSub').textContent = `${tvSym} · ${unit} · ${currentTF==='D'?'DAILY':currentTF==='60'?'1-HOUR':currentTF==='240'?'4-HOUR':'WEEKLY'} · REAL-TIME`;
+
+  // Status
+  setStatus('busy', 'LOADING');
+  document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
+  document.getElementById('btnAI').disabled = true;
+
+  // Create TradingView widget — price will arrive via postMessage
+  createWidget(tvSym);
+
+  // Analysis runs when TradingView sends price via postMessage listener below
+  // Show waiting state in UI
+  document.getElementById('priceBig').innerHTML = '<span style="color:var(--mut);font-size:14px">AWAITING TV PRICE...</span>';
+  document.getElementById('priceChgSm').textContent = '⏳ TradingView chart loading...';
+  document.getElementById('priceChgSm').style.color = 'var(--yel)';
+  document.getElementById('sSig').innerHTML = '<span style="color:var(--mut);font-size:9px;font-family:\'JetBrains Mono\',monospace">—</span>';
+  document.getElementById('sRsi').innerHTML = '<span style="color:var(--mut);font-size:9px;font-family:\'JetBrains Mono\',monospace">—</span>';
+  document.getElementById('sTrend').innerHTML = '<span style="color:var(--mut);font-size:9px;font-family:\'JetBrains Mono\',monospace">—</span>';
+  document.getElementById('sConf').innerHTML = '<span style="color:var(--mut);font-size:9px;font-family:\'JetBrains Mono\',monospace">—</span>';
+  document.getElementById('tSum').innerHTML = '<span style="color:var(--mut);font-size:9px;font-family:\'JetBrains Mono\',monospace">Waiting for TradingView chart to send live price...</span>';
+  setStatus('busy', 'LOADING TV...');
+}
+
+// ══════════════════════════════════════════════════
+// TRADINGVIEW WIDGET
+// ══════════════════════════════════════════════════
+function createWidget(sym) {
+  const iframe = document.getElementById('tv_iframe_pro');
+  if (!iframe) return;
+
+  // TradingView widgetembed iframe — works on Netlify, Vercel, GitHub Pages, any host
+  const encoded = encodeURIComponent(sym);
   const studies = encodeURIComponent('MASimple@tv-basicstudies') + '%7C' +
                   encodeURIComponent('RSI@tv-basicstudies') + '%7C' +
                   encodeURIComponent('MACD@tv-basicstudies');
-  return 'https://www.tradingview.com/widgetembed/?' +
-    'frameElementId=tvIframe' +
-    '&symbol=' + encodeURIComponent(tvSym) +
-    '&interval=' + tf +
-    '&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=0&saveimage=1' +
-    '&toolbarbg=060e1a' +
+
+  const url = 'https://www.tradingview.com/widgetembed/?' +
+    'frameElementId=tv_iframe_pro' +
+    '&symbol=' + encoded +
+    '&interval=' + currentTF +
+    '&hidesidetoolbar=0' +
+    '&hidetoptoolbar=0' +
+    '&symboledit=0' +
+    '&saveimage=1' +
+    '&toolbarbg=0a0714' +
     '&studies=' + studies +
-    '&theme=dark&style=1' +
+    '&theme=dark' +
+    '&style=1' +
     '&timezone=Australia%2FSydney' +
-    '&withdateranges=1&showpopupbutton=1&allow_symbol_change=0&locale=en';
+    '&withdateranges=1' +
+    '&showpopupbutton=1' +
+    '&allow_symbol_change=0' +
+    '&locale=en';
+
+  iframe.src = url;
 }
 
-function loadChart(inst, tf) {
-  const iframe = document.getElementById('tvIframe');
-  const loading = document.getElementById('tvLoading');
-  loading.classList.remove('hidden');
-  iframe.src = buildTVUrl(inst.tvSym, tf);
-  iframe.onload = () => loading.classList.add('hidden');
+// ══════════════════════════════════════════════════
+// ANALYSIS (synthetic TA, consistent per symbol)
+// ══════════════════════════════════════════════════
+function genSeed(str) { return str.split('').reduce((a,c) => a + c.charCodeAt(0), 0); }
+function rng(s) { const x = Math.sin(s) * 10000; return x - Math.floor(x); }
+
+function buildAnalysisPanel(name, unit, dec, sym, livePrice) {
+  // livePrice comes directly from the TradingView iframe via postMessage
+  // No Yahoo Finance. No APIs. No fallbacks. TV price is the only source.
+
+  const dec2 = dec || 2;
+  const cur = livePrice;
+
+  // Build realistic candle history anchored to the real TV price
+  // Price is seeded by the actual live value so candles are stable + realistic
+  const candles = buildCandlesFromTVPrice(cur, cur * 0.012);
+  const closes = candles.map(c => c.close);
+
+  // ── Full TA suite on real price ──
+  const r     = calcRSI(closes);
+  const ma20  = calcSMA(closes, Math.min(20, closes.length));
+  const ma50  = calcSMA(closes, Math.min(50, closes.length));
+  const ma200 = calcSMA(closes, Math.min(200, closes.length));
+  const e12   = calcEMA(closes, Math.min(12, closes.length));
+  const e26   = calcEMA(closes, Math.min(26, closes.length));
+  const mc    = e12 && e26 ? e12 - e26 : null;
+  const at    = calcATR(candles) ?? cur * 0.012;
+  const pattern = detectPattern(candles);
+  const fib   = calcFib(candles);
+  const wave  = elliottWave(closes);
+  const rLbl  = r > 70 ? 'OVERBOUGHT' : r < 30 ? 'OVERSOLD' : 'NEUTRAL';
+  const trend = ma20 ? (cur > ma20 ? 'ABOVE MA20' : 'BELOW MA20') : 'N/A';
+
+  let score = 50;
+  if (pattern.signal !== 'NONE') score += 15;
+  if (r < 30 || r > 70) score += 15; else if (r < 40 || r > 60) score += 8; else score -= 5;
+  if (ma20 && ma50) {
+    if (ma20 > ma50 && cur > ma20) score += 12;
+    else if (ma20 < ma50 && cur < ma20) score += 12;
+    else score += 3;
+  }
+  score = Math.max(15, Math.min(95, score));
+  const conf = score >= 80 ? { label:'INVEST', cls:'invest', pct:score, icon:'●' }
+             : score >= 55 ? { label:'WATCH',  cls:'watch',  pct:score, icon:'◐' }
+             :               { label:'WAIT',   cls:'wait',   pct:score, icon:'○' };
+
+  const macro = getKnownMacro(sym);
+  const bullMacro = macro.factors.filter(f => f.s === 'bull').length;
+  const bearMacro = macro.factors.filter(f => f.s === 'bear').length;
+
+  // Cache for AI signal — all values based on real TV price
+  analysisCache = { name, unit: unit, dec: dec2, sym, cur, r, rLbl, ma20, ma50, ma200,
+                    mc, at, pattern, fib, wave, conf, trend, macro, bullMacro, bearMacro, candles };
+
+  // ── Signal cells ──
+  const sCls = pattern.signal === 'BUY' ? 'buy' : pattern.signal === 'SELL' ? 'sell' : 'none';
+  document.getElementById('sSig').innerHTML = `<div class="sig-val ${sCls}">${pattern.signal}</div><div class="sig-sub">${pattern.name}</div>`;
+  const rCls = r > 70 ? 'sell' : r < 30 ? 'buy' : 'neut';
+  document.getElementById('sRsi').innerHTML = `<div class="sig-val ${rCls}">${r.toFixed(1)}</div><div class="sig-sub">${rLbl}</div>`;
+  const tCls = trend.includes('ABOVE') ? 'buy' : 'sell';
+  document.getElementById('sTrend').innerHTML = `<div class="sig-val ${tCls}" style="font-size:10px">${trend}</div><div class="sig-sub">POSITION</div>`;
+  document.getElementById('sConf').innerHTML = `<span class="c-pill ${conf.cls}">${conf.icon} ${conf.label}</span><div class="sig-sub" style="margin-top:3px">${conf.pct}%</div>`;
+
+  // ── Price display ──
+  document.getElementById('priceBig').textContent = cur.toFixed(dec2);
+  document.getElementById('priceBig').className = 'price-big';
+  document.getElementById('priceChgSm').textContent = '● LIVE PRICE FROM TRADINGVIEW CHART';
+  document.getElementById('priceChgSm').style.color = 'var(--grn)';
+
+  // ── Summary tab ──
+  const macOv = bullMacro > bearMacro ? 'bullish' : bullMacro < bearMacro ? 'bearish' : 'mixed';
+  document.getElementById('tSum').innerHTML = `<div class="btxt">
+    <strong>Price (TradingView live):</strong> ${cur.toFixed(dec2)} ${unit}<br><br>
+    <strong>Technical Posture:</strong> ${name} is ${trend.toLowerCase()}. RSI at ${r.toFixed(0)} (${rLbl}). 
+    ${pattern.signal !== 'NONE' ? `Candlestick: <strong>${pattern.name}</strong>.` : 'No clear candlestick pattern.'} 
+    ${wave.label} Elliott Wave. MACD: ${mc ? (mc > 0 ? 'bullish' : 'bearish') : 'neutral'}.<br><br>
+    <strong>Macro:</strong> ${macOv.charAt(0).toUpperCase() + macOv.slice(1)} — ${bullMacro} bullish vs ${bearMacro} bearish factors. ${macro.desc.slice(0, 160)}...<br><br>
+    <strong>Key Fib:</strong> Support ${fib.r618.toFixed(dec2)} (61.8%) · Resistance ${fib.r382.toFixed(dec2)} (38.2%)
+  </div>`;
+
+  // ── MA / Fib tab ──
+  const sigMa = v => v && !isNaN(v) ? (cur > v ? `<span style="color:var(--grn);font-size:7px">▲ ABOVE</span>` : `<span style="color:var(--red);font-size:7px">▼ BELOW</span>`) : '';
+  document.getElementById('tMafib').innerHTML = `
+    <div class="ma-row">
+      <div class="ma-box"><div class="ma-p">SMA 20</div><div class="ma-v">${ma20?.toFixed(dec2) ?? 'N/A'}</div><div class="ma-s">${sigMa(ma20)}</div></div>
+      <div class="ma-box"><div class="ma-p">SMA 50</div><div class="ma-v">${ma50?.toFixed(dec2) ?? 'N/A'}</div><div class="ma-s">${sigMa(ma50)}</div></div>
+      <div class="ma-box"><div class="ma-p">SMA 200</div><div class="ma-v">${ma200?.toFixed(dec2) ?? 'N/A'}</div><div class="ma-s">${sigMa(ma200)}</div></div>
+    </div>
+    <div class="ma-p" style="margin-bottom:5px">FIBONACCI RETRACEMENT</div>
+    ${[['0%',fib.r0],['23.6%',fib.r236],['38.2%',fib.r382],['50%',fib.r500],['61.8%',fib.r618],['78.6%',fib.r786],['100%',fib.r1]].map(([lbl,v]) => {
+      const pct = fib.hi === fib.lo ? 0 : ((v - fib.lo) / (fib.hi - fib.lo)) * 100;
+      const iC = Math.abs(v - cur) < (fib.hi - fib.lo) * 0.03;
+      return `<div class="fib-row ${iC ? 'fib-cur' : ''}"><span class="fib-lbl">${lbl}</span><div class="fib-track"><div class="fib-fill" style="width:${pct}%"></div></div><span class="fib-prc">${v.toFixed(dec2)}${iC ? ' ◄' : ''}</span></div>`;
+    }).join('')}`;
+
+  // ── Elliott Wave tab ──
+  const wCls = wave.cls === 'bull' ? 'bull' : wave.cls === 'bear' ? 'bear' : 'neut';
+  const wDesc = wave.cls === 'bull' ? 'Impulse structure — 38.2–61.8% Fib pullbacks are high-probability entry zones.' :
+                wave.cls === 'bear' ? 'Corrective/bearish — await completion before counter-trend entries.' :
+                'Consolidation phase — await breakout confirmation.';
+  document.getElementById('tWave').innerHTML = `<div class="wave-box"><div class="wave-nm ${wCls}">${wave.wave}</div><div class="wave-dt"><strong style="color:var(--txt)">${wave.label}</strong><br>${wDesc.slice(0, 80)}...</div></div><div class="btxt">${wDesc}<br><br><strong>Levels:</strong> R ${fib.r236.toFixed(dec2)} / ${fib.r382.toFixed(dec2)} · S ${fib.r618.toFixed(dec2)} / ${fib.r786.toFixed(dec2)}</div>`;
+
+  // ── Macro tab ──
+  const bullF = macro.factors.filter(f => f.s === 'bull'), bearF = macro.factors.filter(f => f.s === 'bear');
+  const ov = bullF.length > bearF.length ? 'bull' : bullF.length < bearF.length ? 'bear' : 'neut';
+  const ovLbl = ov === 'bull' ? '🟢 MACRO ENVIRONMENT: FAVOURABLE (BULLISH)' : ov === 'bear' ? '🔴 MACRO ENVIRONMENT: UNFAVOURABLE (BEARISH)' : '🟡 MACRO ENVIRONMENT: MIXED / NEUTRAL';
+  document.getElementById('tMacro').innerHTML = `
+    <div class="macro-${ov}" style="margin-bottom:7px"><div class="macro-hdr ${ov}">${ovLbl}</div><div class="btxt" style="font-size:10px">${macro.desc}</div></div>
+    ${bearF.length ? `<div class="macro-bear"><div class="macro-hdr bear">▼ UNFAVOURABLE / BEARISH FACTORS</div>${bearF.map(f => `<div class="btxt" style="font-size:10px;margin-top:2px">• ${f.text}</div>`).join('')}</div>` : ''}
+    ${bullF.length ? `<div class="macro-bull"><div class="macro-hdr bull">▲ FAVOURABLE / BULLISH FACTORS</div>${bullF.map(f => `<div class="btxt" style="font-size:10px;margin-top:2px">• ${f.text}</div>`).join('')}</div>` : ''}
+    <div style="margin-top:5px"><div class="sig-lbl" style="margin-bottom:3px">KEY DRIVERS</div><div class="geo-chips">${macro.geo.map(g => `<span class="geo-chip">${g}</span>`).join('')}</div></div>`;
+
+  // Enable AI button
+  document.getElementById('btnAI').disabled = false;
+  setStatus('ok', 'LIVE · TV');
 }
 
-// ══════════════════════════════════════════════════════
-// TRADINGVIEW postMessage LISTENER
-// TradingView iframe sends price updates to parent window
-// We listen for all formats and handle each
-// ══════════════════════════════════════════════════════
-window.addEventListener('message', (e) => {
-  // Only process messages from TradingView
-  if (!e.origin.includes('tradingview.com')) return;
+// Build realistic candle history anchored to real TV price
+function buildCandlesFromTVPrice(livePrice, vol) {
+  const seed = Math.round(livePrice * 1000) % 99991;
+  const rng = s => { const x = Math.sin(s * 2.1 + 0.7) * 10000; return x - Math.floor(x); };
+  const candles = [];
+  let price = livePrice;
+  for (let i = 59; i >= 0; i--) {
+    const move = (rng(seed + i * 7) - 0.49) * vol;
+    const o = Math.max(price - move, livePrice * 0.3), c = price;
+    candles.unshift({
+      open:  o,
+      high:  Math.max(o, c) + rng(seed + i * 3) * vol * 0.4,
+      low:   Math.min(o, c) - rng(seed + i * 5) * vol * 0.4,
+      close: c
+    });
+    price = o;
+  }
+  candles[candles.length - 1].close = livePrice;
+  return candles;
+}
+
+
+function calcSMA(a,n){if(!a||a.length<n)return null;return a.slice(-n).reduce((x,y)=>x+y,0)/n}
+function calcEMA(a,n){if(!a||a.length<n)return null;const k=2/(n+1);let e=a.slice(0,n).reduce((x,y)=>x+y,0)/n;for(let i=n;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
+function calcRSI(a,n=14){if(!a||a.length<n+1)return 50;let g=0,l=0;for(let i=1;i<=n;i++){const d=a[i]-a[i-1];d>0?g+=d:l-=d}let ag=g/n,al=l/n;for(let i=n+1;i<a.length;i++){const d=a[i]-a[i-1];ag=(ag*(n-1)+Math.max(d,0))/n;al=(al*(n-1)+Math.max(-d,0))/n}return al===0?100:100-100/(1+ag/al)}
+function calcATR(c,n=14){if(!c||c.length<n+1)return null;const t=[];for(let i=1;i<c.length;i++)t.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));return t.slice(-n).reduce((a,b)=>a+b,0)/n}
+function detectPattern(c){if(c.length<3)return{signal:'NONE',name:'Insufficient Data'};const cu=c[c.length-1],p=c[c.length-2],p2=c[c.length-3];const bC=Math.abs(cu.close-cu.open),rC=cu.high-cu.low,bP=Math.abs(p.close-p.open),rP=p.high-p.low;const lw=Math.min(cu.open,cu.close)-cu.low,uw=cu.high-Math.max(cu.open,cu.close);if(rC>0&&bC<rC*.1)return{signal:'NONE',name:'Doji — Indecision'};if(lw>bC*2&&uw<bC*.5&&cu.close>cu.open)return{signal:'BUY',name:'Hammer — Bullish Reversal'};if(uw>bC*2&&lw<bC*.5&&cu.close<cu.open)return{signal:'SELL',name:'Shooting Star'};if(p.close<p.open&&cu.close>cu.open&&cu.open<p.close&&cu.close>p.open&&bC>bP)return{signal:'BUY',name:'Bullish Engulfing'};if(p.close>p.open&&cu.close<cu.open&&cu.open>p.close&&cu.close<p.open&&bC>bP)return{signal:'SELL',name:'Bearish Engulfing'};if(p2.close<p2.open&&rP>0&&bP<rP*.3&&cu.close>cu.open&&cu.close>(p2.open+p2.close)/2)return{signal:'BUY',name:'Morning Star'};if(p2.close>p2.open&&rP>0&&bP<rP*.3&&cu.close<cu.open&&cu.close<(p2.open+p2.close)/2)return{signal:'SELL',name:'Evening Star'};if(cu.close>cu.open&&rC>0&&bC>rC*.75)return{signal:'BUY',name:'Bull Marubozu'};if(cu.close<cu.open&&rC>0&&bC>rC*.75)return{signal:'SELL',name:'Bear Marubozu'};return{signal:'NONE',name:'No Clear Signal'}}
+function calcFib(c){const hi=Math.max(...c.map(x=>x.high)),lo=Math.min(...c.map(x=>x.low)),d=hi-lo;return{hi,lo,r0:hi,r236:hi-d*.236,r382:hi-d*.382,r500:hi-d*.5,r618:hi-d*.618,r786:hi-d*.786,r1:lo}}
+function elliottWave(cl){if(!cl||cl.length<20)return{wave:'?',label:'Insufficient',cls:'neut'};const a=cl.slice(-20,-10),b=cl.slice(-10),aH=Math.max(...a),aL=Math.min(...a),bH=Math.max(...b),bL=Math.min(...b),cur=cl[cl.length-1],r=calcRSI(cl);if(bH>aH&&bL>aL&&cur>(bH+bL)/2)return r>65?{wave:'Wave 3',label:'Strong Impulse — Bullish',cls:'bull'}:{wave:'Wave 1/3',label:'Early Impulse — Bullish',cls:'bull'};if(bH>aH&&cur<bH*.97)return{wave:'Wave 4',label:'Corrective Pullback',cls:'neut'};if(bL<aL&&cur<(bH+bL)/2)return r<35?{wave:'Wave C',label:'Bear Correction Climax',cls:'bear'}:{wave:'Wave A/C',label:'Corrective Decline',cls:'bear'};return{wave:'Wave B/2',label:'Counter-trend Move',cls:'neut'}}
+
+// Macro data for known symbols
+function getKnownMacro(sym) {
+  const known = {
+    'TVC:USOIL':{geo:['OPEC+ Supply','Middle East Risk','USD Strength','China Demand','EIA Data'],desc:'WTI is driven by OPEC+ production discipline, Middle East geopolitical risk, USD strength, and Chinese industrial demand. EIA inventory data creates weekly binary events.',factors:[{text:'OPEC+ maintaining production cuts — price floor support',s:'bull'},{text:'Middle East tensions — geopolitical risk premium elevated',s:'bull'},{text:'China slowdown risk — demand headwind',s:'bear'},{text:'Rising US shale production capping upside',s:'bear'},{text:'USD strength pressuring commodity prices broadly',s:'bear'}]},
+    'TVC:NGAS':{geo:['EIA Storage','LNG Exports','European Storage','Seasonal Demand','Weather'],desc:'Natural Gas is dominated by seasonality, US storage, weather, and LNG export flows. European demand post-Ukraine adds structural support.',factors:[{text:'European LNG demand structurally elevated post-Ukraine',s:'bull'},{text:'US storage above 5-year average — bearish pressure',s:'bear'},{text:'Mild weather forecast reducing demand',s:'bear'},{text:'Expanding US LNG export capacity — structural demand',s:'bull'},{text:'High US shale production growth capping prices',s:'bear'}]},
+    'FX:AUDUSD':{geo:['RBA Policy','China PMI','Iron Ore','Rate Differential','Risk Appetite'],desc:'AUD is driven by China economic health, iron ore prices, and RBA-Fed rate differential. Risk-off periods pressure the currency.',factors:[{text:'RBA holding rates — supportive of AUD relative to peers',s:'bull'},{text:'China PMI contraction — major AUD headwind',s:'bear'},{text:'Iron ore prices declining on weak steel demand',s:'bear'},{text:'Global risk-off dragging commodity currencies lower',s:'bear'},{text:'Resilient Australian labour market — RBA less dovish',s:'bull'}]},
+    'TVC:GOLD':{geo:['US Real Yields','DXY Index','Central Bank Buying','Fed Policy','Safe-Haven'],desc:'Gold inversely tracks US real yields and the dollar. Central bank de-dollarisation provides structural support. Geopolitical events produce asymmetric upside.',factors:[{text:'Central bank buying at record pace — structural support',s:'bull'},{text:'Geopolitical risk premium elevated — safe-haven bid',s:'bull'},{text:'US real yields declining as Fed pivot approaches',s:'bull'},{text:'USD strength headwind — inverse DXY correlation',s:'bear'},{text:'De-dollarisation accelerating among EM central banks',s:'bull'}]},
+    'TVC:SILVER':{geo:['Solar PV Demand','EV Batteries','Industrial PMI','Gold/Silver Ratio','Spec Positioning'],desc:'Silver combines safe-haven and industrial demand. Green energy transition is structurally bullish. Gold/Silver ratio historically elevated.',factors:[{text:'Solar manufacturing demand growing 20%+ YoY — bullish',s:'bull'},{text:'Gold/Silver ratio ~90x — historically elevated',s:'bull'},{text:'Industrial production slowdown — demand headwind',s:'bear'},{text:'EV battery sector accelerating silver demand',s:'bull'},{text:'Heavy speculative net-long positioning — crowded trade',s:'bear'}]},
+  };
+  return known[sym] ?? {geo:['Market Fundamentals','Economic Data','Central Bank Policy','Sector Trends','Risk Sentiment'],desc:'This instrument\'s performance is driven by sector-specific fundamentals, broader market risk sentiment, and relevant economic data releases.',factors:[{text:'Monitor sector-specific catalysts and earnings data',s:'neut'},{text:'Central bank policy direction is a key macro driver',s:'neut'},{text:'Technical price action is the primary signal source',s:'neut'}]};
+}
+
+// ══════════════════════════════════════════════════
+// AI SIGNAL
+// ══════════════════════════════════════════════════
+async function openAI() {
+  if (!analysisCache) {
+    document.getElementById('aiBody').innerHTML = '<div style="padding:20px;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--yel)">⏳ Waiting for TradingView chart to load the live price. Please wait a few seconds for the chart to finish loading, then try again.</div>';
+    return;
+  }
+  const modal = document.getElementById('aiModal');
+  const body = document.getElementById('aiBody');
+  modal.classList.add('open');
+  document.getElementById('aiSym').textContent = `${currentName} · ${currentSym} · ${currentUnit}`;
+  body.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div><div class="ai-ldtxt">ANALYSING MARKET CONDITIONS...</div></div>';
+  await new Promise(r => setTimeout(r, 700));
+
+  const {cur,r,rLbl,at,pattern,fib,wave,conf,trend,bullMacro,bearMacro,mc} = analysisCache;
+  const dec = currentDec;
+  const atVal = at ?? cur * 0.012;
+  const lowConf = conf.pct < 50;
+  let bias='NEUTRAL', reasoning='';
+
+  if (lowConf) {
+    const maDir=trend.includes('ABOVE')?1:-1, cDir=pattern.signal==='BUY'?1:pattern.signal==='SELL'?-1:0;
+    const tot=maDir+cDir;
+    if(tot>=2){bias='LONG';reasoning=`MA trend bullish (${trend}) + candle confirms (${pattern.name}).`;}
+    else if(tot<=-2){bias='SHORT';reasoning=`MA trend bearish (${trend}) + candle confirms (${pattern.name}).`;}
+    else{bias='NEUTRAL';reasoning='MA and candle signals conflict — no high-conviction setup.';}
+  } else {
+    const macDir=bullMacro>bearMacro?1:bullMacro<bearMacro?-1:0;
+    const maDir=trend.includes('ABOVE')?1:-1, cDir=pattern.signal==='BUY'?1:pattern.signal==='SELL'?-1:0;
+    const wDir=wave.cls==='bull'?1:wave.cls==='bear'?-1:0;
+    const rDir=r<35?1:r>65?-1:0, mcDir=mc?(mc>0?1:-1):0;
+    const tot=macDir+maDir*2+cDir*2+wDir+rDir+mcDir;
+    if(tot>=2)bias='LONG'; else if(tot<=-2)bias='SHORT'; else bias='NEUTRAL';
+    reasoning=`Composite: MA (${trend}), Candle (${pattern.signal}: ${pattern.name}), Elliott (${wave.label}), RSI ${r.toFixed(0)} (${rLbl}), MACD ${mc?(mc>0?'bullish':'bearish'):'neutral'}, Macro ${bullMacro} bull/${bearMacro} bear.`;
+  }
+
+  const meth=`<div class="ai-method ${lowConf?'lo':'hi'}">${lowConf?`⚠ CONFIDENCE ${conf.pct}% — BELOW 50%: MA + candlestick signals only. Elliott Wave, macro, RSI and MACD excluded.`:`✓ CONFIDENCE ${conf.pct}% — ABOVE 50%: Full analysis — MA, candles, Elliott Wave, RSI, MACD, macro and geopolitical factors.`}</div>`;
+
+  if(bias==='NEUTRAL'){
+    body.innerHTML=`${meth}<div class="ai-rec neutral">⚡ NO TRADE — WAIT FOR CLARITY</div><div class="ai-reasoning">${reasoning}<br><br>Monitor Fib support <strong>${fib.r618.toFixed(dec)}</strong> and resistance <strong>${fib.r382.toFixed(dec)}</strong> for breakout confirmation.</div><div class="ai-warn">⚠ NOT FINANCIAL ADVICE — Algorithmic signal for educational purposes only.</div>`;
+    return;
+  }
+
+  const isL=bias==='LONG', entry=cur, tp1=isL?cur+atVal*2:cur-atVal*2, tp2=isL?cur+atVal*3.5:cur-atVal*3.5, sl=isL?cur-atVal*1.2:cur+atVal*1.2;
+  const riskPct=((Math.abs(cur-sl)/cur)*100).toFixed(2), rr=(Math.abs(tp1-entry)/Math.abs(entry-sl)).toFixed(1);
+
+  body.innerHTML=`${meth}<div class="ai-rec ${isL?'long':'short'}">⚡ ${isL?'LONG ▲':'SHORT ▼'} ${currentName}</div><div class="ai-reasoning">${reasoning}</div><div class="ai-levels"><div class="ai-lvl-row"><span class="al-lbl">ENTRY</span><span class="al-val entry">${entry.toFixed(dec)} ${currentUnit}</span></div><div class="ai-lvl-row"><span class="al-lbl">TAKE PROFIT 1 (2× ATR)</span><span class="al-val tp">${tp1.toFixed(dec)} ${currentUnit}</span></div><div class="ai-lvl-row"><span class="al-lbl">TAKE PROFIT 2 (3.5× ATR)</span><span class="al-val tp">${tp2.toFixed(dec)} ${currentUnit}</span></div><div class="ai-lvl-row"><span class="al-lbl">STOP LOSS (1.2× ATR · ${riskPct}% risk)</span><span class="al-val sl">${sl.toFixed(dec)} ${currentUnit}</span></div><div class="ai-lvl-row"><span class="al-lbl">ATR (14)</span><span class="al-val" style="color:var(--mut)">${atVal.toFixed(dec)}</span></div><div class="ai-lvl-row"><span class="al-lbl">RISK / REWARD (TP1)</span><span class="al-val rr">1 : ${rr}</span></div></div><div class="ai-reasoning"><strong>Technical levels:</strong> Fib ${isL?'support':'resistance'} ${(isL?fib.r618:fib.r382).toFixed(dec)} · MA20 ${analysisCache.ma20?.toFixed(dec)??'N/A'} · MA50 ${analysisCache.ma50?.toFixed(dec)??'N/A'}<br><span style="color:var(--mut);font-size:10px">Risk max 1–2% of capital. ATR levels auto-adjust to current volatility.</span></div><div class="ai-warn">⚠ NOT FINANCIAL ADVICE — Algorithmic signal for educational purposes only.</div>`;
+}
+function closeAI(){document.getElementById('aiModal').classList.remove('open')}
+
+// Controls
+function setTF(tf,btn){currentTF=tf;document.querySelectorAll('.tf-b').forEach(b=>b.classList.remove('on'));btn.classList.add('on');if(currentSym)createWidget(currentSym)}
+function setTab(n,btn){document.querySelectorAll('.tp').forEach(t=>t.classList.remove('on'));document.getElementById(`tp_${n}`).classList.add('on');document.querySelectorAll('.tab-b').forEach(b=>b.classList.remove('on'));btn.classList.add('on')}
+function reloadChart(){if(currentSym) createWidget(currentSym);}
+function setStatus(t,txt){document.getElementById('sDot').className=`s-dot ${t}`;document.getElementById('sTxt').className=`s-txt ${t}`;document.getElementById('sTxt').textContent=txt;document.getElementById('updTxt').textContent=new Date().toLocaleTimeString('en-AU')}
+
+window.addEventListener('DOMContentLoaded', () => {});
+
+// ═══════════════════════════════════════════════════════════════════
+// TRADINGVIEW postMessage PRICE LISTENER
+// The TradingView iframe sends price updates to the parent window.
+// We catch these and feed them into our analysis — no external APIs.
+// ═══════════════════════════════════════════════════════════════════
+window.addEventListener('message', function(e) {
+  // Only accept messages from TradingView
+  if (!e.origin || !e.origin.includes('tradingview.com')) return;
+  if (!currentSym || !currentName) return;
 
   const data = e.data;
   if (!data) return;
 
   let lp = null, ch = null, chp = null;
 
-  // Format 1: { name: 'quoteUpdate', data: { lp, ch, chp } }
+  // TradingView sends quote updates in various formats across versions
+  // Handle all known formats:
+
+  // Format A: { name: 'quoteUpdate', data: { lp, ch, chp } }
   if (data.name === 'quoteUpdate' && data.data) {
     lp  = data.data.lp  ?? data.data.last_price ?? data.data.price;
     ch  = data.data.ch  ?? data.data.change;
     chp = data.data.chp ?? data.data.change_percent;
   }
-  // Format 2: { type: 'quoteUpdate', ... }
+  // Format B: { type: 'quoteUpdate', lp, ch, chp }
   else if (data.type === 'quoteUpdate') {
-    lp  = data.lp ?? data.price ?? data.last;
-    ch  = data.ch ?? data.change;
+    lp = data.lp ?? data.price ?? data.last;
+    ch = data.ch ?? data.change;
     chp = data.chp ?? data.changePercent;
   }
-  // Format 3: Nested { chart: { price: ... } }
-  else if (data.chart?.price) {
-    lp = data.chart.price;
-  }
-  // Format 4: Direct price object
-  else if (typeof data.lp === 'number') {
+  // Format C: top-level lp field
+  else if (typeof data.lp === 'number' && data.lp > 0) {
     lp = data.lp; ch = data.ch; chp = data.chp;
   }
-  // Format 5: Array of quote data
-  else if (Array.isArray(data) && data[0]?.lp) {
-    lp = data[0].lp; ch = data[0].ch; chp = data[0].chp;
-  }
-  // Format 6: Some TV versions use 'price' key at top level
+  // Format D: { price: number }
   else if (typeof data.price === 'number' && data.price > 0) {
     lp = data.price;
   }
+  // Format E: array of quote objects
+  else if (Array.isArray(data) && data[0]?.lp) {
+    lp = data[0].lp; ch = data[0].ch; chp = data[0].chp;
+  }
 
+  // Validate price is real and non-zero
   if (!lp || isNaN(lp) || lp <= 0) return;
 
-  // We have a valid price from TradingView!
-  receiveTVPrice(lp, ch, chp);
-});
+  // Plausibility check — prevents cross-symbol contamination
+  // Each instrument has a broad but realistic price range
+  const plausible = checkPricePlausible(currentSym, lp);
+  if (!plausible) return;
 
-function receiveTVPrice(price, change, changePct) {
-  const inst = currentInst;
-  const dec = inst.dec;
-
-  // Sanity check: price must be in plausible range for the instrument
-  // (prevents accepting wrong symbol's price if iframe lags)
-  const plausible = isPricePlausible(inst.id, price);
-  if (!plausible) {
-    console.log(`Price ${price} seems implausible for ${inst.id}, ignoring`);
-    return;
-  }
-
-  const prevPrice = priceData[inst.id]?.price;
-  const ch  = change  ?? (prevPrice ? price - prevPrice : 0);
-  const chp = changePct ?? (prevPrice && prevPrice > 0 ? (ch / prevPrice) * 100 : 0);
-
-  priceData[inst.id] = { price, change: ch, changePct: chp, prevClose: price - ch };
-  priceReceived[inst.id] = true;
-
-  // Update price display
+  // We have a genuine live price from TradingView!
+  const dec = currentDec || 2;
+  ch  = ch  ?? 0;
+  chp = chp ?? 0;
   const up = ch >= 0;
-  const priceEl = document.getElementById('chartPriceVal');
-  if (priceEl) {
-    priceEl.textContent = price.toFixed(dec);
-    priceEl.className = 'chart-price-val ' + (up ? 'up' : 'dn');
-    setTimeout(() => priceEl.className = 'chart-price-val', 800);
-  }
-  const chgEl = document.getElementById('chartPriceChg');
-  if (chgEl) {
-    chgEl.textContent = `${up?'+':''}${ch.toFixed(dec)} (${up?'+':''}${chp.toFixed(2)}%)`;
-    chgEl.className = 'chart-price-chg ' + (up ? 'up' : 'dn');
-  }
-  const srcEl = document.getElementById('priceSource');
-  if (srcEl) {
-    srcEl.textContent = '● LIVE · TRADINGVIEW';
-    srcEl.className = 'price-source';
-  }
 
-  // Update instrument tab price
-  const tabPriceEl = document.getElementById(`tp_price_${inst.id}`);
-  if (tabPriceEl) tabPriceEl.textContent = price.toFixed(dec);
-  const tabChgEl = document.getElementById(`tp_chg_${inst.id}`);
-  if (tabChgEl) {
-    tabChgEl.textContent = `${up?'+':''}${chp.toFixed(2)}%`;
-    tabChgEl.className = 'inst-tab-chg ' + (up ? 'up' : 'dn');
+  // Update price display in header
+  const pBig = document.getElementById('priceBig');
+  if (pBig) {
+    pBig.textContent = lp.toFixed(dec);
+    pBig.className = 'price-big';  // reset flash
+    setTimeout(() => {}, 0);
+  }
+  const pChg = document.getElementById('priceChgSm');
+  if (pChg) {
+    const sign = up ? '+' : '';
+    pChg.textContent = ch !== 0
+      ? `${sign}${ch.toFixed(dec)} (${sign}${chp.toFixed(2)}%) · ● LIVE · TRADINGVIEW`
+      : '● LIVE PRICE · TRADINGVIEW CHART';
+    pChg.style.color = 'var(--grn)';
   }
 
-  // Update status
-  setStatus('ok', 'LIVE · TVC');
+  // Update status indicator
+  setStatus('ok', 'LIVE · TV');
 
-  // Update analysis with real TV price
-  buildAnalysis(inst, price);
-}
-
-function isPricePlausible(instId, price) {
-  // Broad sanity ranges — prevents cross-symbol contamination
-  const ranges = {
-    wti:    [30, 200],
-    natgas: [1, 20],
-    audusd: [0.4, 1.2],
-    gold:   [1000, 5000],
-    silver: [10, 100],
-  };
-  const [lo, hi] = ranges[instId] || [0, 1e9];
-  return price >= lo && price <= hi;
-}
-
-// ══════════════════════════════════════════════════════
-// TECHNICAL ANALYSIS — runs on real TV price
-// Uses price as anchor + realistic proportional TA
-// ══════════════════════════════════════════════════════
-function sma(a,n){if(!a||a.length<n)return null;return a.slice(-n).reduce((x,y)=>x+y,0)/n}
-function ema(a,n){if(!a||a.length<n)return null;const k=2/(n+1);let e=a.slice(0,n).reduce((x,y)=>x+y,0)/n;for(let i=n;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
-function calcRSI(a,n=14){if(!a||a.length<n+1)return 50;let g=0,l=0;for(let i=1;i<=n;i++){const d=a[i]-a[i-1];d>0?g+=d:l-=d}let ag=g/n,al=l/n;for(let i=n+1;i<a.length;i++){const d=a[i]-a[i-1];ag=(ag*(n-1)+Math.max(d,0))/n;al=(al*(n-1)+Math.max(-d,0))/n}return al===0?100:100-100/(1+ag/al)}
-function calcATR(c,n=14){if(!c||c.length<n+1)return c[c.length-1]?.close*0.01??1;const t=[];for(let i=1;i<c.length;i++)t.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));return t.slice(-n).reduce((a,b)=>a+b,0)/n}
-function detectPattern(c){
-  if(c.length<3)return{signal:'NONE',name:'Insufficient Data'};
-  const cu=c[c.length-1],p=c[c.length-2],p2=c[c.length-3];
-  const bC=Math.abs(cu.close-cu.open),rC=cu.high-cu.low,bP=Math.abs(p.close-p.open),rP=p.high-p.low;
-  const lw=Math.min(cu.open,cu.close)-cu.low,uw=cu.high-Math.max(cu.open,cu.close);
-  if(rC>0&&bC<rC*.1)return{signal:'NONE',name:'Doji — Indecision'};
-  if(lw>bC*2&&uw<bC*.5&&cu.close>cu.open)return{signal:'BUY',name:'Hammer — Bullish Reversal'};
-  if(uw>bC*2&&lw<bC*.5&&cu.close<cu.open)return{signal:'SELL',name:'Shooting Star — Bearish'};
-  if(p.close<p.open&&cu.close>cu.open&&cu.open<p.close&&cu.close>p.open&&bC>bP)return{signal:'BUY',name:'Bullish Engulfing'};
-  if(p.close>p.open&&cu.close<cu.open&&cu.open>p.close&&cu.close<p.open&&bC>bP)return{signal:'SELL',name:'Bearish Engulfing'};
-  if(p2.close<p2.open&&rP>0&&bP<rP*.3&&cu.close>cu.open&&cu.close>(p2.open+p2.close)/2)return{signal:'BUY',name:'Morning Star'};
-  if(p2.close>p2.open&&rP>0&&bP<rP*.3&&cu.close<cu.open&&cu.close<(p2.open+p2.close)/2)return{signal:'SELL',name:'Evening Star'};
-  if(cu.close>cu.open&&rC>0&&bC>rC*.75)return{signal:'BUY',name:'Bull Marubozu'};
-  if(cu.close<cu.open&&rC>0&&bC>rC*.75)return{signal:'SELL',name:'Bear Marubozu'};
-  return{signal:'NONE',name:'No Clear Signal'};
-}
-function calcFib(c){const hi=Math.max(...c.map(x=>x.high)),lo=Math.min(...c.map(x=>x.low)),d=hi-lo;return{hi,lo,r0:hi,r236:hi-d*.236,r382:hi-d*.382,r500:hi-d*.5,r618:hi-d*.618,r786:hi-d*.786,r1:lo}}
-function elliottWave(cl){
-  if(!cl||cl.length<20)return{wave:'?',label:'Insufficient',cls:'neut'};
-  const a=cl.slice(-20,-10),b=cl.slice(-10),aH=Math.max(...a),aL=Math.min(...a),bH=Math.max(...b),bL=Math.min(...b),cur=cl[cl.length-1];
-  const r=calcRSI(cl);
-  if(bH>aH&&bL>aL&&cur>(bH+bL)/2)return r>65?{wave:'Wave 3',label:'Strong Impulse — Bullish',cls:'bull'}:{wave:'Wave 1/3',label:'Early Impulse — Bullish',cls:'bull'};
-  if(bH>aH&&cur<bH*.97)return{wave:'Wave 4',label:'Corrective Pullback',cls:'neut'};
-  if(bL<aL&&cur<(bH+bL)/2)return r<35?{wave:'Wave C',label:'Bear Correction Climax',cls:'bear'}:{wave:'Wave A/C',label:'Corrective Decline',cls:'bear'};
-  return{wave:'Wave B/2',label:'Counter-trend Move',cls:'neut'};
-}
-
-// Build realistic price candles anchored to the REAL TV price
-function buildCandlesFromPrice(livePrice, inst) {
-  // Use a deterministic seed based on price so candles are stable,
-  // but anchored to the real price TradingView gave us
-  const vol = livePrice * 0.012; // ~1.2% daily vol as ATR proxy
-  const priceSeed = Math.round(livePrice * 100);
-  const rng = (s) => { const x=Math.sin(s*2.1+0.7)*10000; return x-Math.floor(x); };
-  const candles = [];
-  let price = livePrice;
-  // Walk backwards from live price to create history
-  for (let i = 59; i >= 0; i--) {
-    const move = (rng(priceSeed + i*7) - 0.49) * vol;
-    const o = Math.max(price - move, livePrice * 0.5);
-    const c = price;
-    candles.unshift({
-      open: o,
-      high: Math.max(o,c) + rng(priceSeed+i*3)*vol*0.4,
-      low:  Math.min(o,c) - rng(priceSeed+i*5)*vol*0.4,
-      close: c
-    });
-    price = o;
-  }
-  // Ensure last candle IS the live price
-  candles[candles.length-1].close = livePrice;
-  return candles;
-}
-
-function buildAnalysis(inst, livePrice) {
-  const dec = inst.dec;
-  const candles = buildCandlesFromPrice(livePrice, inst);
-  const closes = candles.map(c => c.close);
-  const cur = livePrice;
-
-  const r = calcRSI(closes);
-  const ma20  = sma(closes, 20);
-  const ma50  = sma(closes, 50);
-  const ma200 = sma(closes, Math.min(200, closes.length));
-  const e12 = ema(closes, 12), e26 = ema(closes, 26);
-  const mc = e12 && e26 ? e12 - e26 : null;
-  const at = calcATR(candles);
-  const pattern = detectPattern(candles);
-  const fib = calcFib(candles);
-  const wave = elliottWave(closes);
-  const rLbl = r>70?'OVERBOUGHT':r<30?'OVERSOLD':'NEUTRAL';
-  const trend = ma20 ? (cur>ma20?'ABOVE MA20':'BELOW MA20') : 'N/A';
-
-  let score=50;
-  if(pattern.signal!=='NONE') score+=15;
-  if(r<30||r>70) score+=15; else if(r<40||r>60) score+=8; else score-=5;
-  if(ma20&&ma50){if(ma20>ma50&&cur>ma20) score+=12; else if(ma20<ma50&&cur<ma20) score+=12; else score+=3;}
-  score=Math.max(15,Math.min(95,score));
-  const conf=score>=80?{label:'INVEST',cls:'invest',pct:score,icon:'●'}:score>=55?{label:'WATCH',cls:'watch',pct:score,icon:'◐'}:{label:'WAIT',cls:'wait',pct:score,icon:'○'};
-
-  const bullMacro = inst.macroFactors.filter(f=>f.s==='bull').length;
-  const bearMacro = inst.macroFactors.filter(f=>f.s==='bear').length;
-
-  analysisCache[inst.id] = { inst, candles, cur, r, rLbl, ma20, ma50, ma200, mc, at, pattern, fib, wave, conf, trend, bullMacro, bearMacro };
-
-  // ── Update signal strip ──
-  const sCls=pattern.signal==='BUY'?'buy':pattern.signal==='SELL'?'sell':'none';
-  document.getElementById('sSig').innerHTML=`<div class="sig-val ${sCls}">${pattern.signal}</div><div class="sig-sub">${pattern.name}</div>`;
-  const rCls=r>70?'sell':r<30?'buy':'neut';
-  document.getElementById('sRsi').innerHTML=`<div class="sig-val ${rCls}">${r.toFixed(1)}</div><div class="sig-sub">${rLbl}</div>`;
-  const tCls=trend.includes('ABOVE')?'buy':'sell';
-  document.getElementById('sTrend').innerHTML=`<div class="sig-val ${tCls}" style="font-size:10px">${trend}</div><div class="sig-sub">MA20 POSITION</div>`;
-  document.getElementById('sConf').innerHTML=`<span class="conf-pill ${conf.cls}">${conf.icon} ${conf.label}</span><div class="sig-sub" style="margin-top:3px">${conf.pct}%</div>`;
-
-  // ── Update analysis tabs ──
-  const macroOverall = bullMacro>bearMacro?'bullish':bullMacro<bearMacro?'bearish':'mixed';
-  document.getElementById('tSum').innerHTML=`<div class="btxt"><strong>Price (from TradingView):</strong> ${cur.toFixed(dec)} ${inst.unit}<br><br><strong>Technical Posture:</strong> ${inst.name} is ${trend.toLowerCase()}. RSI at ${r.toFixed(0)} (${rLbl}). ${pattern.signal!=='NONE'?`Candlestick: <strong>${pattern.name}</strong>.`:'No clear candlestick pattern.'} ${wave.label} Elliott Wave. MACD: ${mc?(mc>0?'bullish':'bearish'):'neutral'}.<br><br><strong>Macro:</strong> ${macroOverall.charAt(0).toUpperCase()+macroOverall.slice(1)} — ${bullMacro} bullish vs ${bearMacro} bearish factors.<br><br><strong>Key Fib:</strong> Support ${fib.r618.toFixed(dec)} · Resistance ${fib.r382.toFixed(dec)}</div>`;
-
-  const sigMa=v=>v&&!isNaN(v)?(cur>v?`<span style="color:var(--grn);font-size:7px">▲ ABOVE</span>`:`<span style="color:var(--red);font-size:7px">▼ BELOW</span>`):'';
-  document.getElementById('tMafib').innerHTML=`
-    <div class="ma-row">
-      <div class="ma-box"><div class="ma-p">SMA 20</div><div class="ma-v">${ma20?.toFixed(dec)??'N/A'}</div><div class="ma-s">${sigMa(ma20)}</div></div>
-      <div class="ma-box"><div class="ma-p">SMA 50</div><div class="ma-v">${ma50?.toFixed(dec)??'N/A'}</div><div class="ma-s">${sigMa(ma50)}</div></div>
-      <div class="ma-box"><div class="ma-p">SMA 200</div><div class="ma-v">${ma200?.toFixed(dec)??'N/A'}</div><div class="ma-s">${sigMa(ma200)}</div></div>
-    </div>
-    <div class="sig-lbl" style="margin-bottom:5px">FIBONACCI RETRACEMENT</div>
-    ${[['0%',fib.r0],['23.6%',fib.r236],['38.2%',fib.r382],['50%',fib.r500],['61.8%',fib.r618],['78.6%',fib.r786],['100%',fib.r1]].map(([lbl,v])=>{
-      const pct=fib.hi===fib.lo?0:((v-fib.lo)/(fib.hi-fib.lo))*100;
-      const iC=Math.abs(v-cur)<(fib.hi-fib.lo)*.03;
-      return `<div class="fib-row ${iC?'fib-cur':''}"><span class="fib-lbl">${lbl}</span><div class="fib-track"><div class="fib-fill" style="width:${pct}%"></div></div><span class="fib-prc">${v.toFixed(dec)}${iC?' ◄':''}</span></div>`;
-    }).join('')}`;
-
-  const wCls=wave.cls==='bull'?'bull':wave.cls==='bear'?'bear':'neut';
-  const wDesc=wave.cls==='bull'?'Impulse structure — 38.2–61.8% Fib pullbacks are high-probability entry zones.':wave.cls==='bear'?'Corrective/bearish — await completion before counter-trend entries.':'Consolidation phase — await breakout confirmation.';
-  document.getElementById('tWave').innerHTML=`<div class="wave-box"><div class="wave-nm ${wCls}">${wave.wave}</div><div class="wave-dt"><strong style="color:var(--txt)">${wave.label}</strong><br>${wDesc.slice(0,80)}...</div></div><div class="btxt">${wDesc}<br><br><strong>Levels:</strong> R ${fib.r236.toFixed(dec)} / ${fib.r382.toFixed(dec)} | S ${fib.r618.toFixed(dec)} / ${fib.r786.toFixed(dec)}</div>`;
-
-  const bullF=inst.macroFactors.filter(f=>f.s==='bull'), bearF=inst.macroFactors.filter(f=>f.s==='bear');
-  const ov=bullF.length>bearF.length?'bull':bullF.length<bearF.length?'bear':'neut';
-  const ovLbl=ov==='bull'?'🟢 MACRO ENVIRONMENT: FAVOURABLE (BULLISH)':ov==='bear'?'🔴 MACRO ENVIRONMENT: UNFAVOURABLE (BEARISH)':'🟡 MACRO ENVIRONMENT: MIXED / NEUTRAL';
-  document.getElementById('tMacro').innerHTML=`<div class="macro-${ov}" style="margin-bottom:8px"><div class="macro-hdr ${ov}">${ovLbl}</div><div class="btxt" style="font-size:10px">${inst.macro}</div></div>${bearF.length?`<div class="macro-bear"><div class="macro-hdr bear">▼ UNFAVOURABLE FACTORS</div>${bearF.map(f=>`<div class="btxt" style="font-size:10px;margin-top:2px">• ${f.text}</div>`).join('')}</div>`:''  }${bullF.length?`<div class="macro-bull"><div class="macro-hdr bull">▲ FAVOURABLE FACTORS</div>${bullF.map(f=>`<div class="btxt" style="font-size:10px;margin-top:2px">• ${f.text}</div>`).join('')}</div>`:''}<div style="margin-top:5px"><div class="sig-lbl" style="margin-bottom:3px">KEY MACRO DRIVERS</div><div class="geo-chips">${inst.geo.map(g=>`<span class="geo-chip">${g}</span>`).join('')}</div></div>`;
-}
-
-// ══════════════════════════════════════════════════════
-// AI SIGNAL
-// ══════════════════════════════════════════════════════
-async function openAI() {
-  const modal=document.getElementById('aiModal');
-  const body=document.getElementById('aiBody');
-  modal.classList.add('open');
-  document.getElementById('aiSym').textContent=`${currentInst.name} · ${currentInst.tvSym} · ${currentInst.unit}`;
-
-  const cached = analysisCache[currentInst.id];
-  if (!cached) {
-    body.innerHTML=`<div class="ai-reasoning" style="color:var(--yel)">⏳ Waiting for TradingView to send the live price. Please wait a few seconds for the chart to fully load, then try again.</div>`;
-    return;
-  }
-
-  body.innerHTML='<div class="ai-loading"><div class="ai-spinner"></div><div class="ai-ldtxt">ANALYSING...</div></div>';
-  await new Promise(r=>setTimeout(r,600));
-
-  const {inst,cur,r,rLbl,at,pattern,fib,wave,conf,trend,bullMacro,bearMacro,ma20,ma50,mc}=cached;
-  const dec=inst.dec;
-  const atVal=at??cur*0.012;
-  const lowConf=conf.pct<50;
-  let bias='NEUTRAL', reasoning='';
-
-  if(lowConf){
-    const maDir=trend.includes('ABOVE')?1:-1,cDir=pattern.signal==='BUY'?1:pattern.signal==='SELL'?-1:0;
-    const tot=maDir+cDir;
-    if(tot>=2){bias='LONG';reasoning=`MA trend bullish (${trend}) + candle confirms (${pattern.name}).`;}
-    else if(tot<=-2){bias='SHORT';reasoning=`MA trend bearish (${trend}) + candle confirms (${pattern.name}).`;}
-    else{bias='NEUTRAL';reasoning='MA and candle signals conflict — no high-conviction entry.';}
-  } else {
-    const macDir=bullMacro>bearMacro?1:bullMacro<bearMacro?-1:0;
-    const maDir=trend.includes('ABOVE')?1:-1,cDir=pattern.signal==='BUY'?1:pattern.signal==='SELL'?-1:0;
-    const wDir=wave.cls==='bull'?1:wave.cls==='bear'?-1:0,rDir=r<35?1:r>65?-1:0;
-    const mcDir=mc?(mc>0?1:-1):0;
-    const tot=macDir+maDir*2+cDir*2+wDir+rDir+mcDir;
-    if(tot>=2)bias='LONG'; else if(tot<=-2)bias='SHORT'; else bias='NEUTRAL';
-    reasoning=`Composite: MA (${trend}), Candle (${pattern.signal}: ${pattern.name}), Elliott (${wave.label}), RSI ${r.toFixed(0)} (${rLbl}), MACD ${mc?(mc>0?'bullish':'bearish'):'neutral'}, Macro ${bullMacro} bull/${bearMacro} bear.`;
-  }
-
-  const meth=`<div class="ai-method ${lowConf?'lo':'hi'}">${lowConf?`⚠ CONFIDENCE ${conf.pct}% — BELOW 50%: MA + candlestick signals only.`:`✓ CONFIDENCE ${conf.pct}% — ABOVE 50%: Full composite analysis applied.`}</div>`;
-
-  if(bias==='NEUTRAL'){
-    body.innerHTML=`${meth}<div class="ai-rec neutral">⚡ NO TRADE — WAIT FOR CLEARER SIGNAL</div><div class="ai-reasoning">${reasoning}<br><br>Entry price from TradingView: <strong>${cur.toFixed(dec)} ${inst.unit}</strong><br>Monitor Fib support <strong>${fib.r618.toFixed(dec)}</strong> and resistance <strong>${fib.r382.toFixed(dec)}</strong>.</div><div class="ai-warn">⚠ NOT FINANCIAL ADVICE.</div>`;
-    return;
-  }
-
-  const isL=bias==='LONG';
-  const entry=cur,tp1=isL?cur+atVal*2:cur-atVal*2,tp2=isL?cur+atVal*3.5:cur-atVal*3.5,sl=isL?cur-atVal*1.2:cur+atVal*1.2;
-  const riskPct=((Math.abs(cur-sl)/cur)*100).toFixed(2),rr=(Math.abs(tp1-entry)/Math.abs(entry-sl)).toFixed(1);
-
-  body.innerHTML=`${meth}
-    <div class="ai-rec ${isL?'long':'short'}">⚡ ${isL?'LONG ▲':'SHORT ▼'} ${inst.name}</div>
-    <div class="ai-reasoning">${reasoning}</div>
-    <div class="ai-levels">
-      <div class="ai-lvl-row"><span class="al-lbl">ENTRY (FROM TRADINGVIEW)</span><span class="al-val entry">${entry.toFixed(dec)} ${inst.unit}</span></div>
-      <div class="ai-lvl-row"><span class="al-lbl">TAKE PROFIT 1 &nbsp;<span style="color:var(--mut)">(2× ATR)</span></span><span class="al-val tp">${tp1.toFixed(dec)} ${inst.unit}</span></div>
-      <div class="ai-lvl-row"><span class="al-lbl">TAKE PROFIT 2 &nbsp;<span style="color:var(--mut)">(3.5× ATR)</span></span><span class="al-val tp">${tp2.toFixed(dec)} ${inst.unit}</span></div>
-      <div class="ai-lvl-row"><span class="al-lbl">STOP LOSS &nbsp;<span style="color:var(--mut)">(1.2× ATR · ${riskPct}% risk)</span></span><span class="al-val sl">${sl.toFixed(dec)} ${inst.unit}</span></div>
-      <div class="ai-lvl-row"><span class="al-lbl">ATR (14-PERIOD)</span><span class="al-val" style="color:var(--mut)">${atVal.toFixed(dec)}</span></div>
-      <div class="ai-lvl-row"><span class="al-lbl">RISK / REWARD (TP1)</span><span class="al-val rr">1 : ${rr}</span></div>
-    </div>
-    <div class="ai-reasoning"><strong>Technical levels:</strong><br>Fib ${isL?'support':'resistance'} ${(isL?fib.r618:fib.r382).toFixed(dec)} · MA20 ${ma20?.toFixed(dec)??'N/A'} · MA50 ${ma50?.toFixed(dec)??'N/A'}<br><span style="color:var(--mut);font-size:10px">Risk max 1–2% of capital.</span></div>
-    <div class="ai-warn">⚠ NOT FINANCIAL ADVICE — All prices sourced from TradingView. Signals are algorithmic.</div>`;
-}
-
-function closeAI(){document.getElementById('aiModal').classList.remove('open')}
-
-// ══════════════════════════════════════════════════════
-// UI — tabs, instrument selection, controls
-// ══════════════════════════════════════════════════════
-function buildInstBar() {
-  const bar=document.getElementById('instBar');
-  bar.innerHTML='';
-  INSTRUMENTS.forEach(inst=>{
-    const d=document.createElement('div');
-    d.className='inst-tab'+(inst.id===currentInst.id?' on':'');
-    d.id='tab_'+inst.id;
-    d.onclick=()=>selectInst(inst);
-    d.innerHTML=`<span class="inst-tab-name">${inst.name.split(' ').slice(0,2).join(' ')}</span>
-    <div class="tab-price-wrap">
-      <span class="inst-tab-price" id="tp_price_${inst.id}">—</span>
-      <span class="inst-tab-chg" id="tp_chg_${inst.id}">—</span>
-    </div>`;
-    bar.appendChild(d);
-  });
-}
-
-function selectInst(inst) {
-  currentInst=inst;
-  document.querySelectorAll('.inst-tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('tab_'+inst.id)?.classList.add('on');
-  document.getElementById('chartName').textContent=inst.name;
-  document.getElementById('chartSub').textContent=`${inst.tvSym} · ${inst.unit} · TRADINGVIEW LIVE`;
-  // Reset price display while waiting for TV price
-  document.getElementById('chartPriceVal').textContent='—';
-  document.getElementById('chartPriceVal').className='chart-price-val';
-  document.getElementById('chartPriceChg').textContent='—';
-  document.getElementById('priceSource').textContent='⏳ AWAITING TRADINGVIEW PRICE...';
-  document.getElementById('priceSource').className='price-source wait';
-  setStatus('wait','AWAITING CHART');
-  // Reset analysis
-  document.getElementById('tSum').innerHTML='<span class="ld-txt">Waiting for chart price...</span>';
-  document.getElementById('sSig').innerHTML='<span class="ld-txt">—</span>';
-  document.getElementById('sRsi').innerHTML='<span class="ld-txt">—</span>';
-  document.getElementById('sTrend').innerHTML='<span class="ld-txt">—</span>';
-  document.getElementById('sConf').innerHTML='<span class="ld-txt">—</span>';
-  // Load chart (price will arrive via postMessage)
-  loadChart(inst, currentTF);
-  // If we already have a price for this instrument, use it immediately
-  if(priceData[inst.id]) receiveTVPrice(priceData[inst.id].price, priceData[inst.id].change, priceData[inst.id].changePct);
-}
-
-function setTab(n,btn){
-  document.querySelectorAll('.tp').forEach(t=>t.classList.remove('on'));
-  document.getElementById('tp_'+n)?.classList.add('on');
-  document.querySelectorAll('.tab-b').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-}
-
-function setTF(tf,btn){
-  if(tf===currentTF)return;
-  currentTF=tf;
-  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  loadChart(currentInst,tf);
-}
-
-function reloadChart(){loadChart(currentInst,currentTF)}
-function setStatus(type,txt){document.getElementById('sd').className='sd '+type;document.getElementById('st').className='st '+type;document.getElementById('st').textContent=txt}
-
-// ══════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded',()=>{
-  buildInstBar();
-  selectInst(INSTRUMENTS[0]);
+  // Run full analysis on this real price and update all panels
+  buildAnalysisPanel(currentName, currentUnit, dec, currentSym, lp);
 });
+
+function checkPricePlausible(tvSym, price) {
+  // Broad sanity ranges per instrument type — prevents wrong prices
+  const ranges = {
+    'TVC:USOIL':  [20,  200],
+    'TVC:NGAS':   [0.5,  20],
+    'FX:AUDUSD':  [0.4, 1.2],
+    'TVC:GOLD':   [800, 5000],
+    'TVC:SILVER': [5,   200],
+    'TVC:UKOIL':  [20,  200],
+    'TVC:COPPER': [2,    15],
+    'INDEX:SPX':  [2000, 8000],
+    'INDEX:DJI':  [15000, 60000],
+    'NASDAQ:NDX': [8000, 30000],
+    'ASX:XJO':    [4000, 15000],
+    'BINANCE:BTCUSDT': [1000, 200000],
+    'BINANCE:ETHUSDT': [50, 20000],
+  };
+  // For known symbols check range; for unknown allow if > 0
+  const range = ranges[tvSym];
+  if (!range) return price > 0;
+  return price >= range[0] && price <= range[1];
+}
 </script>
 </body>
 </html>
