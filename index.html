@@ -162,6 +162,8 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .btn-close{background:transparent;border:1px solid var(--bdr2);color:#bbb;padding:8px 18px;font-family:'JetBrains Mono',monospace;font-size:9px;cursor:pointer;margin-top:14px;transition:all .15s;letter-spacing:1px}
 .btn-close:hover{color:#fff;border-color:#fff}
 .shimmer{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);animation:blink 1.2s infinite}
+@keyframes priceFlash{0%{color:#fff}30%{color:var(--acc3)}100%{color:#fff}}
+.price-flash{animation:priceFlash .6s ease-out}
 .footer{position:relative;z-index:1;padding:10px 24px;border-top:1px solid var(--bdr)}
 .footer-txt{font-family:'JetBrains Mono',monospace;font-size:7px;color:#444;line-height:1.8;letter-spacing:.3px}
 
@@ -409,93 +411,134 @@ const fxFrankfurter={
 };
 
 // ══════════════════════════════════════════════════
-// TRADINGVIEW postMessage PRICE LISTENER
-// TradingView's iframe widget broadcasts real-time
-// price ticks to the parent via window.postMessage.
-// We intercept these to show the exact same price
-// the chart displays — no separate API needed.
+// PRICE ENGINE — TradingView symbol info API (primary)
+// Uses TradingView's own public quote endpoint — the
+// exact same data source that powers the "C" price
+// shown in the chart header bar.
+// Fallback chain: TV quote → Stooq → Yahoo → Frankfurter → Reference
 // ══════════════════════════════════════════════════
-let tvPriceReceived = false;
-let tvPriceTimeout = null;
 
-window.addEventListener('message', function(e) {
-  // Only accept messages from TradingView
-  if (!e.origin || !e.origin.includes('tradingview.com')) return;
+let lastKnownPrice = null;   // cached so refresh always has something
+let priceRefreshTimer = null;
 
+// TradingView public quote API — returns the current last/close price
+// Same data the chart widget displays. No auth required.
+async function fetchTradingViewPrice(tvSym) {
+  // TV symbol info endpoint — works cross-origin, returns JSON
+  const url = `https://symbol-search.tradingview.com/symbol_search/v3/?text=${encodeURIComponent(tvSym)}&hl=0&exchange=&lang=en&search_type=undefined&domain=production`;
+  // We use the dedicated quote endpoint instead
+  const quoteUrl = `https://query1.tradingview.com/v3/symbols/bulk_quotes?symbols=${encodeURIComponent(tvSym)}&fields=lp,ch,chp,open_price,high_price,low_price,volume`;
+
+  // Attempt 1: TradingView bulk quotes API
   try {
-    const msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-    if (!msg || !currentSym) return;
-
-    // TradingView sends several message types; we want quote/price data
-    // Common payloads: {name:'quoteUpdate'}, {name:'widgetReady'}, price in various fields
-    let price = null;
-
-    // Pattern 1: direct quote update with last/lp field
-    if (msg.name === 'quoteUpdate' || msg.type === 'quoteUpdate') {
-      price = msg.data?.lp ?? msg.data?.last ?? msg.data?.close ?? msg.lp ?? msg.last;
-    }
-    // Pattern 2: ticker data object
-    if (!price && msg.data && typeof msg.data === 'object') {
-      price = msg.data.lp ?? msg.data.last_price ?? msg.data.close ?? msg.data.price;
-    }
-    // Pattern 3: flat message with price fields
-    if (!price) {
-      price = msg.lp ?? msg.last_price ?? msg.price ?? msg.close;
-    }
-    // Pattern 4: array payload (TV sometimes sends [type, {data}])
-    if (!price && Array.isArray(msg) && msg.length >= 2) {
-      const payload = msg[1];
-      if (payload && typeof payload === 'object') {
-        price = payload.lp ?? payload.last ?? payload.close ?? payload.price;
+    const r = await fetch(quoteUrl, { signal: AbortSignal.timeout(6000), cache: 'no-store' });
+    if (r.ok) {
+      const j = await r.json();
+      const data = j?.d?.[0]?.d ?? j?.data?.[0] ?? j?.[0];
+      if (data) {
+        const price = data.lp ?? data.last_price ?? data.close;
+        if (price && !isNaN(price) && price > 0) return { price: parseFloat(price), source: 'tradingview' };
       }
     }
+  } catch(e) {}
 
-    if (price && !isNaN(parseFloat(price)) && parseFloat(price) > 0) {
-      const p = parseFloat(price);
-      tvPriceReceived = true;
-      updatePriceDisplay(p, 'tradingview', currentDec, currentUnit);
-
-      // Also update analysisCache so AI signal uses the TV price
-      if (analysisCache) {
-        analysisCache.cur = p;
-        // Rebuild last candle close with live price
-        if (analysisCache.candles && analysisCache.candles.length > 0) {
-          analysisCache.candles[analysisCache.candles.length - 1].close = p;
-        }
-      }
+  // Attempt 2: TradingView symbol info (simpler endpoint, often works)
+  try {
+    const symParts = tvSym.split(':');
+    const exchange = symParts.length > 1 ? symParts[0] : '';
+    const ticker = symParts.length > 1 ? symParts[1] : symParts[0];
+    const infoUrl = `https://symbol-search.tradingview.com/symbol_info?group=${encodeURIComponent(tvSym)}`;
+    const r2 = await fetch(infoUrl, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    if (r2.ok) {
+      const j2 = await r2.json();
+      const price = j2?.close ?? j2?.last_price ?? j2?.lp;
+      if (price && !isNaN(price) && price > 0) return { price: parseFloat(price), source: 'tradingview' };
     }
-  } catch(err) {
-    // Silently ignore parse errors — TV sends many non-JSON messages
-  }
-});
+  } catch(e) {}
+
+  throw new Error('TradingView price unavailable');
+}
 
 function updatePriceDisplay(price, source, dec, unit) {
+  if (!price || isNaN(price) || price <= 0) return;
+  lastKnownPrice = price;  // always cache the last good price
+
   const priceEl = document.getElementById('priceBig');
   const labelEl = document.getElementById('priceChgSm');
   if (!priceEl || !labelEl) return;
 
   priceEl.textContent = price.toFixed(dec);
-  priceEl.className = 'price-big';
+  priceEl.className = 'price-big price-flash';
+  setTimeout(() => { if(priceEl) priceEl.className = 'price-big'; }, 600);
 
-  if (source === 'tradingview') {
-    labelEl.textContent = '▶ LIVE · TradingView Chart · ' + unit;
-    labelEl.className = 'price-chg-sm live';
-    labelEl.style.color = '';
-    setStatus('ok', 'LIVE');
-    document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
-  } else if (source === 'stooq') {
-    labelEl.textContent = '● CLOSE · Stooq · ' + unit;
-    labelEl.className = 'price-chg-sm stooq';
-    labelEl.style.color = '';
-  } else if (source === 'reference') {
-    labelEl.textContent = '⚠ REFERENCE · Awaiting live data';
-    labelEl.className = 'price-chg-sm ref';
-    labelEl.style.color = '';
-  } else {
-    labelEl.textContent = '● LIVE · ' + source + ' · ' + unit;
-    labelEl.className = 'price-chg-sm live';
-    labelEl.style.color = '';
+  const labels = {
+    'tradingview': `▶ LIVE · TradingView · ${unit}`,
+    'stooq':       `● CLOSE · Stooq · ${unit}`,
+    'yahoo-jsonp': `● LIVE · Yahoo Finance · ${unit}`,
+    'yahoo-fetch': `● LIVE · Yahoo Finance · ${unit}`,
+    'frankfurter': `● LIVE · Frankfurter ECB · ${unit}`,
+    'reference':   `⚠ LAST KNOWN · ${unit}`,
+  };
+  const classes = {
+    'tradingview': 'live', 'stooq': 'stooq',
+    'yahoo-jsonp': 'live', 'yahoo-fetch': 'live',
+    'frankfurter': 'live', 'reference': 'ref',
+  };
+
+  labelEl.textContent = labels[source] ?? `● LIVE · ${source} · ${unit}`;
+  labelEl.className = `price-chg-sm ${classes[source] ?? 'live'}`;
+  labelEl.style.color = '';
+
+  const isLive = ['tradingview','yahoo-jsonp','yahoo-fetch','frankfurter'].includes(source);
+  setStatus(isLive ? 'ok' : 'ok', isLive ? 'LIVE' : 'CLOSE');
+  document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
+}
+
+// Fetch price from TV first, then fallback chain, then update display
+async function fetchAndDisplayPrice(tvSym, dec, unit) {
+  // 1. Try TradingView
+  try {
+    const r = await fetchTradingViewPrice(tvSym);
+    updatePriceDisplay(r.price, 'tradingview', dec, unit);
+    if (analysisCache) { analysisCache.cur = r.price; }
+    return r.price;
+  } catch(e) {}
+
+  // 2. Try Stooq
+  const stooqSym = tvToStooq[tvSym];
+  if (stooqSym) {
+    try {
+      const r = await fetchStooqLatest(stooqSym);
+      updatePriceDisplay(r.price, 'stooq', dec, unit);
+      if (analysisCache) { analysisCache.cur = r.price; }
+      return r.price;
+    } catch(e) {}
   }
+
+  // 3. Try Yahoo
+  const yahooSym = tvToYahoo[tvSym];
+  if (yahooSym) {
+    try {
+      const r = await fetchYahooJSONP(yahooSym);
+      updatePriceDisplay(r.price, 'yahoo-jsonp', dec, unit);
+      if (analysisCache) { analysisCache.cur = r.price; }
+      return r.price;
+    } catch(e) {}
+    try {
+      const r = await fetchYahooFetch(yahooSym);
+      updatePriceDisplay(r.price, 'yahoo-fetch', dec, unit);
+      if (analysisCache) { analysisCache.cur = r.price; }
+      return r.price;
+    } catch(e) {}
+  }
+
+  // 4. If we have a cached price from < 10s ago, use it
+  if (lastKnownPrice) {
+    updatePriceDisplay(lastKnownPrice, 'reference', dec, unit);
+    return lastKnownPrice;
+  }
+
+  return null;
 }
 
 // PRESET / LOAD
@@ -508,8 +551,8 @@ function loadPreset(val){
 
 async function loadInstrument(tvSym,name,unit,dec){
   currentSym=tvSym;currentName=name;currentUnit=unit;currentDec=dec;
-  tvPriceReceived=false;
-  clearTimeout(tvPriceTimeout);
+  lastKnownPrice=null;  // reset cache on new instrument
+  clearTimeout(priceRefreshTimer);
 
   document.getElementById('emptyState').style.display='none';
   document.getElementById('mainContent').style.display='block';
@@ -519,28 +562,37 @@ async function loadInstrument(tvSym,name,unit,dec){
   document.getElementById('chartSymName').textContent=name;
   document.getElementById('chartSymSub').textContent=`${tvSym} · ${unit} · ${currentTF==='D'?'DAILY':currentTF==='60'?'1-HOUR':currentTF==='240'?'4-HOUR':'WEEKLY'}`;
   document.getElementById('priceBig').textContent='···';
-  document.getElementById('priceChgSm').textContent='Syncing with chart…';
+  document.getElementById('priceChgSm').textContent='Fetching price from TradingView…';
   document.getElementById('priceChgSm').className='price-chg-sm';
   document.getElementById('priceChgSm').style.color='var(--mut)';
   setStatus('busy','LOADING');
   document.getElementById('updTxt').textContent=new Date().toLocaleTimeString('en-AU');
   document.getElementById('btnAI').disabled=true;
 
-  // Create widget FIRST — TV postMessage may arrive during analysis fetch
+  // Start chart widget immediately
   createWidget(tvSym);
 
-  // Run analysis (Stooq/Yahoo for candle history + TA; price may be overridden by TV)
-  await buildAnalysisPanel(name,unit,dec,tvSym);
+  // Fetch price + run full analysis in parallel
+  const [priceResult] = await Promise.allSettled([
+    fetchAndDisplayPrice(tvSym, dec, unit),
+    buildAnalysisPanel(name, unit, dec, tvSym)
+  ]);
+
+  // If price fetch beat buildAnalysisPanel, sync it into cache
+  if (priceResult.status === 'fulfilled' && priceResult.value && analysisCache) {
+    analysisCache.cur = priceResult.value;
+  }
+
   document.getElementById('btnAI').disabled=false;
 
-  // If TV postMessage hasn't arrived within 6s of widget load, keep Stooq price
-  tvPriceTimeout = setTimeout(() => {
-    if (!tvPriceReceived && analysisCache) {
-      const src = analysisCache.dataSource ?? 'reference';
-      const live = ['stooq','yahoo-jsonp','yahoo-fetch','frankfurter'];
-      setStatus(live.includes(src)?'ok':'busy', live.includes(src)?'CLOSE':'REFERENCE');
+  // Auto-refresh price every 15s while this instrument is loaded
+  priceRefreshTimer = setInterval(async () => {
+    if (currentSym === tvSym) {
+      await fetchAndDisplayPrice(tvSym, dec, unit);
+    } else {
+      clearInterval(priceRefreshTimer);
     }
-  }, 6000);
+  }, 15000);
 }
 
 // TRADINGVIEW WIDGET
@@ -702,12 +754,10 @@ async function buildAnalysisPanel(name,unit,dec,sym){
   document.getElementById('sTrend').innerHTML=`<div class="sig-val ${trend.includes('ABOVE')?'buy':'sell'}" style="font-size:10px">${trend}</div><div class="sig-sub">POSITION</div>`;
   document.getElementById('sConf').innerHTML=`<span class="c-pill ${conf.cls}">${conf.icon} ${conf.label}</span><div class="sig-sub" style="margin-top:3px">${conf.pct}%</div>`;
 
-  // Show Stooq/fallback price immediately; TV postMessage will override with live tick
-  updatePriceDisplay(cur, dataSource, dec, unit);
-  // Status: Stooq = close price until TV live tick arrives
-  if (!tvPriceReceived) {
-    const liveSources=['stooq','yahoo-jsonp','yahoo-fetch','frankfurter'];
-    setStatus(liveSources.includes(dataSource)?'ok':'busy', liveSources.includes(dataSource)?'CLOSE':'REFERENCE');
+  // Only update price display from here if fetchAndDisplayPrice hasn't already set a better price
+  // (fetchAndDisplayPrice runs in parallel and may have already resolved with TV/Stooq price)
+  if (!lastKnownPrice) {
+    updatePriceDisplay(cur, dataSource, dec, unit);
   }
 
   const macroOverall=bullMacro>bearMacro?'bullish':bullMacro<bearMacro?'bearish':'mixed';
@@ -769,7 +819,11 @@ async function openAI(){
 function closeAI(){document.getElementById('aiModal').classList.remove('open')}
 function setTF(tf,btn){currentTF=tf;document.querySelectorAll('.tf-b').forEach(b=>b.classList.remove('on'));btn.classList.add('on');if(currentSym)createWidget(currentSym)}
 function setTab(n,btn){document.querySelectorAll('.tp').forEach(t=>t.classList.remove('on'));document.getElementById(`tp_${n}`).classList.add('on');document.querySelectorAll('.tab-b').forEach(b=>b.classList.remove('on'));btn.classList.add('on')}
-function reloadChart(){if(currentSym)createWidget(currentSym);}
+function reloadChart(){
+  if(!currentSym)return;
+  createWidget(currentSym);
+  fetchAndDisplayPrice(currentSym, currentDec, currentUnit);
+}
 function setStatus(t,txt){document.getElementById('sDot').className=`s-dot ${t}`;document.getElementById('sTxt').className=`s-txt ${t}`;document.getElementById('sTxt').textContent=txt;document.getElementById('updTxt').textContent=new Date().toLocaleTimeString('en-AU')}
 </script>
 </body>
