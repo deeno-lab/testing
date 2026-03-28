@@ -411,109 +411,193 @@ const fxFrankfurter={
 };
 
 // ══════════════════════════════════════════════════
-// PRICE ENGINE v4 — DEFINITIVE SOLUTION
+// PRICE ENGINE v5 — TWELVE DATA API
 // ══════════════════════════════════════════════════
-// Root cause of all previous failures:
-//   Every external API (Yahoo, Stooq, TradingView APIs) is CORS-blocked
-//   when called from a browser on a deployed site. There is NO postMessage
-//   from TradingView's widgetembed iframe that contains price data.
+// Twelve Data is a proper financial data API with:
+//   • CORS enabled (designed for browser use)
+//   • Covers ALL instruments: commodities, FX, crypto, stocks, indices
+//   • Free tier: 800 req/day, 8 req/min — plenty for this app
+//   • /price endpoint: single real-time price, ~1 API credit
+//   • /time_series endpoint: OHLCV history for TA candles
+//   • Get your free key at: https://twelvedata.com/apikey
 //
-// Solution:
-//   Route ALL requests through allorigins.win — a free, open CORS proxy.
-//   allorigins.win fetches any URL server-side and returns it with CORS headers.
-//   We use Stooq as the data source (accurate, free, no auth, all instruments).
-//
-//   Primary:   allorigins → Stooq latest quote CSV  (all instruments)
-//   Secondary: allorigins → Stooq daily history     (for candle TA data)
-//   Fallback:  allorigins → Yahoo Finance v8 chart  (if Stooq symbol unknown)
-//   Last resort: hardcoded reference price          (clearly labelled)
-//
-// FMEA mitigations:
-//   - allorigins.win timeout: 10s, then try allorigins.io (backup proxy)
-//   - Stooq returns "N/D" for unknown symbols → caught, falls to Yahoo
-//   - Markets closed: Stooq still returns last close → correct behaviour
-//   - Instrument not in Stooq map → falls to Yahoo symbol map
-//   - Auto-refresh every 20s keeps price current
-//   - Price always shows source label so user knows data quality
+// Fallback chain:
+//   1. Twelve Data /price        (real-time, accurate)
+//   2. Twelve Data /time_series  (latest close from history)
+//   3. Frankfurter ECB           (FX pairs only, CORS-open)
+//   4. Last known price cache    (stale but labelled)
 // ══════════════════════════════════════════════════
 
-let lastKnownPrice = null;
+// ── CONFIGURATION — paste your Twelve Data API key here ──
+const TWELVE_DATA_KEY = 'YOUR_API_KEY_HERE';
+
+// TradingView symbol → Twelve Data symbol + optional exchange param
+const tvToTwelve = {
+  // Commodities
+  'TVC:GOLD':      { sym: 'XAU/USD' },
+  'TVC:SILVER':    { sym: 'XAG/USD' },
+  'TVC:USOIL':     { sym: 'WTI/USD' },
+  'TVC:NGAS':      { sym: 'NGAS/USD' },
+  'TVC:UKOIL':     { sym: 'XBR/USD' },
+  'TVC:COPPER':    { sym: 'COPPER/USD' },
+  'TVC:PLATINUM':  { sym: 'XPT/USD' },
+  'TVC:PALLADIUM': { sym: 'XPD/USD' },
+  // Forex
+  'FX:AUDUSD':     { sym: 'AUD/USD' },
+  'FX:EURUSD':     { sym: 'EUR/USD' },
+  'FX:GBPUSD':     { sym: 'GBP/USD' },
+  'FX:USDJPY':     { sym: 'USD/JPY' },
+  'FX:USDCAD':     { sym: 'USD/CAD' },
+  'FX:NZDUSD':     { sym: 'NZD/USD' },
+  'FX:USDCHF':     { sym: 'USD/CHF' },
+  'FX:EURJPY':     { sym: 'EUR/JPY' },
+  'FX:GBPJPY':     { sym: 'GBP/JPY' },
+  // Crypto
+  'BINANCE:BTCUSDT': { sym: 'BTC/USD' },
+  'BINANCE:ETHUSDT': { sym: 'ETH/USD' },
+  'BINANCE:SOLUSDT': { sym: 'SOL/USD' },
+  'BINANCE:XRPUSDT': { sym: 'XRP/USD' },
+  // Indices
+  'INDEX:SPX':        { sym: 'SPX',  exchange: 'NYSE' },
+  'INDEX:DJI':        { sym: 'DJI',  exchange: 'NYSE' },
+  'NASDAQ:NDX':       { sym: 'NDX',  exchange: 'NASDAQ' },
+  'ASX:XJO':          { sym: 'XJO',  exchange: 'ASX' },
+  'FOREXCOM:UKXGBP':  { sym: 'FTSE', exchange: 'LSE' },
+  'TVC:NI225':        { sym: 'N225', exchange: 'TSE' },
+  'XETR:DAX':         { sym: 'DAX',  exchange: 'XETR' },
+  'TVC:HSI':          { sym: 'HSI',  exchange: 'HKEX' },
+  // US Stocks
+  'NASDAQ:AAPL': { sym: 'AAPL', exchange: 'NASDAQ' },
+  'NASDAQ:NVDA': { sym: 'NVDA', exchange: 'NASDAQ' },
+  'NASDAQ:MSFT': { sym: 'MSFT', exchange: 'NASDAQ' },
+  'NASDAQ:TSLA': { sym: 'TSLA', exchange: 'NASDAQ' },
+  'NASDAQ:AMZN': { sym: 'AMZN', exchange: 'NASDAQ' },
+  'NYSE:BRK.A':  { sym: 'BRK.A', exchange: 'NYSE' },
+  // ASX Stocks
+  'ASX:BHP': { sym: 'BHP', exchange: 'ASX' },
+  'ASX:CBA': { sym: 'CBA', exchange: 'ASX' },
+  'ASX:RIO': { sym: 'RIO', exchange: 'ASX' },
+  'ASX:ANZ': { sym: 'ANZ', exchange: 'ASX' },
+  'ASX:CSL': { sym: 'CSL', exchange: 'ASX' },
+};
+
+// ══════════════════════════════════════════════════
+// PRICE CACHE — per-symbol, timestamped
+// Survives rate limits, tab switches, network blips
+// ══════════════════════════════════════════════════
+const priceCache = {};     // { 'TVC:GOLD': { price, ts, dec, unit } }
 let priceRefreshTimer = null;
+let rateLimitUntil = 0;    // epoch ms — suppress calls until this time
+let countdownTimer = null;
 
-// CORS proxy wrappers — two proxies for redundancy
-function corsProxyUrl(targetUrl, proxy = 'allorigins') {
-  const encoded = encodeURIComponent(targetUrl);
-  if (proxy === 'allorigins') return `https://api.allorigins.win/raw?url=${encoded}`;
-  if (proxy === 'corsproxy')  return `https://corsproxy.io/?${encoded}`;
-  return `https://api.allorigins.win/raw?url=${encoded}`;
+function cachePrice(tvSym, price, dec, unit) {
+  priceCache[tvSym] = { price, ts: Date.now(), dec, unit };
 }
 
-async function fetchViaProxy(targetUrl, timeout = 10000, proxy = 'allorigins') {
-  const proxyUrl = corsProxyUrl(targetUrl, proxy);
-  const resp = await fetch(proxyUrl, {
-    signal: AbortSignal.timeout(timeout),
-    cache: 'no-store',
-    headers: { 'Accept': '*/*' }
+function getCachedPrice(tvSym) {
+  return priceCache[tvSym] ?? null;
+}
+
+// Age of cached price in seconds
+function cacheAge(tvSym) {
+  const c = priceCache[tvSym];
+  return c ? Math.floor((Date.now() - c.ts) / 1000) : null;
+}
+
+// ══════════════════════════════════════════════════
+// RATE LIMIT COUNTDOWN — shows in price label
+// ══════════════════════════════════════════════════
+function startCountdown(waitSecs, tvSym, dec, unit) {
+  clearInterval(countdownTimer);
+  let remaining = waitSecs;
+  const labelEl = document.getElementById('priceChgSm');
+
+  countdownTimer = setInterval(() => {
+    remaining--;
+    const cached = getCachedPrice(tvSym);
+    const ageStr = cached ? ` · as of ${Math.floor((Date.now()-cached.ts)/1000)}s ago` : '';
+    if (labelEl) {
+      labelEl.textContent = `⏳ RATE LIMITED · retrying in ${remaining}s${ageStr}`;
+      labelEl.className = 'price-chg-sm ref';
+    }
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      rateLimitUntil = 0;
+      // Auto-retry once countdown expires
+      if (currentSym === tvSym) {
+        fetchPriceAndCandles(tvSym).then(d => {
+          updatePriceDisplay(d.price, d.source, dec, unit, tvSym);
+        });
+      }
+    }
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════
+// TWELVE DATA FETCHERS
+// ══════════════════════════════════════════════════
+function tdUrl(endpoint, tvEntry, extraParams = {}) {
+  const params = new URLSearchParams({
+    symbol:  tvEntry.sym,
+    apikey:  TWELVE_DATA_KEY,
+    ...(tvEntry.exchange ? { exchange: tvEntry.exchange } : {}),
+    ...extraParams
   });
-  if (!resp.ok) throw new Error(`Proxy ${resp.status}: ${proxyUrl}`);
-  return resp;
+  return `https://api.twelvedata.com/${endpoint}?${params}`;
 }
 
-// ── Stooq quote fetch via CORS proxy ──
-// Returns { price, open, high, low } or throws
-async function fetchStooqViaProxy(stooqSym, proxy = 'allorigins') {
-  const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSym)}&f=sd2t2ohlcv&h&e=csv`;
-  const resp = await fetchViaProxy(url, 10000, proxy);
-  const text = await resp.text();
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) throw new Error('No data rows from Stooq');
-  const cols = lines[lines.length - 1].split(',');
-  // CSV columns: Symbol,Date,Time,Open,High,Low,Close,Volume
-  const close = parseFloat(cols[6]);
-  const open  = parseFloat(cols[3]);
-  const high  = parseFloat(cols[4]);
-  const low   = parseFloat(cols[5]);
-  if (isNaN(close) || close <= 0) throw new Error(`Stooq bad close "${cols[6]}" for ${stooqSym}`);
-  return { price: close, open, high, low };
-}
+async function fetchTwelvePrice(tdEntry) {
+  const url = tdUrl('price', tdEntry);
+  const resp = await fetch(url, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
 
-// ── Stooq history fetch via CORS proxy ──
-// Returns array of {open,high,low,close} candles or throws
-async function fetchStooqHistoryViaProxy(stooqSym, proxy = 'allorigins') {
-  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`;
-  const resp = await fetchViaProxy(url, 12000, proxy);
-  const text = await resp.text();
-  const lines = text.trim().split('\n').slice(1); // skip header
-  if (lines.length < 5) throw new Error('Not enough history rows');
-  const candles = lines.slice(-100).map(l => {
-    const p = l.split(',');
-    return { open: +p[1], high: +p[2], low: +p[3], close: +p[4] };
-  }).filter(c => c.close > 0 && !isNaN(c.close) && c.high >= c.low);
-  if (candles.length < 5) throw new Error('Not enough valid candles');
-  return candles;
-}
+  // Rate limited — 429 per-minute, or TD returns 200 with error code "429"
+  if (resp.status === 429) throw Object.assign(new Error('RATE_LIMIT'), { rateLimited: true, retryAfter: 60 });
 
-// ── Yahoo Finance via CORS proxy ──
-async function fetchYahooViaProxy(yahooSym, proxy = 'allorigins') {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=1d&range=3mo&includePrePost=false`;
-  const resp = await fetchViaProxy(url, 10000, proxy);
+  if (!resp.ok) throw new Error(`TD HTTP ${resp.status}`);
   const json = await resp.json();
-  if (json?.chart?.error) throw new Error('Yahoo chart error: ' + JSON.stringify(json.chart.error));
-  const result = json?.chart?.result?.[0];
-  if (!result?.timestamp?.length) throw new Error('No Yahoo data');
-  const meta = result.meta;
-  const ts = result.timestamp;
-  const q = result.indicators?.quote?.[0];
-  const candles = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = q?.open?.[i], h = q?.high?.[i], l = q?.low?.[i], c = q?.close?.[i];
-    if (o == null || h == null || l == null || c == null || isNaN(c) || c <= 0 || h < l) continue;
-    candles.push({ open: +o, high: +h, low: +l, close: +c });
+
+  // TD sometimes returns HTTP 200 but with an error payload
+  if (json.code === 429 || json.message?.includes('API credits')) {
+    throw Object.assign(new Error('RATE_LIMIT'), { rateLimited: true, retryAfter: 60 });
   }
-  const livePrice = meta?.regularMarketPrice ?? candles[candles.length - 1]?.close;
-  if (!livePrice || isNaN(livePrice) || livePrice <= 0) throw new Error('No Yahoo price');
-  if (candles.length > 0) candles[candles.length - 1].close = livePrice;
-  return { price: livePrice, candles };
+  if (json.status === 'error') throw new Error(`TD: ${json.message}`);
+
+  const price = parseFloat(json.price);
+  if (isNaN(price) || price <= 0) throw new Error(`TD bad price: ${JSON.stringify(json)}`);
+  return price;
+}
+
+async function fetchTwelveCandles(tdEntry, outputsize = 90) {
+  const url = tdUrl('time_series', tdEntry, { interval: '1day', outputsize, format: 'JSON' });
+  const resp = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'no-store' });
+  if (resp.status === 429) throw Object.assign(new Error('RATE_LIMIT'), { rateLimited: true });
+  if (!resp.ok) throw new Error(`TD timeseries HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (json.code === 429 || json.status === 'error') throw new Error(`TD ts: ${json.message}`);
+  const values = json.values;
+  if (!values || values.length < 5) throw new Error('TD: not enough candles');
+  return values.slice().reverse().map(v => ({
+    open: parseFloat(v.open), high: parseFloat(v.high),
+    low:  parseFloat(v.low),  close: parseFloat(v.close),
+  })).filter(c => !isNaN(c.close) && c.close > 0 && c.high >= c.low);
+}
+
+// ══════════════════════════════════════════════════
+// FRANKFURTER — FX fallback, always CORS-open
+// ══════════════════════════════════════════════════
+const fxFrankfurter = {
+  'FX:AUDUSD':['AUD','USD'],'FX:EURUSD':['EUR','USD'],'FX:GBPUSD':['GBP','USD'],
+  'FX:USDJPY':['USD','JPY'],'FX:USDCAD':['USD','CAD'],'FX:NZDUSD':['NZD','USD'],
+  'FX:USDCHF':['USD','CHF'],'FX:EURJPY':['EUR','JPY'],'FX:GBPJPY':['GBP','JPY'],
+};
+async function fetchFrankfurter(from, to) {
+  const r = await fetch(`https://api.frankfurter.app/latest?from=${from}&to=${to}`,
+    { signal: AbortSignal.timeout(6000), cache: 'no-store' });
+  if (!r.ok) throw new Error(`Frankfurter ${r.status}`);
+  const j = await r.json();
+  const rate = j?.rates?.[to];
+  if (!rate || isNaN(rate)) throw new Error('Frankfurter: no rate');
+  return parseFloat(rate);
 }
 
 function buildRefCandles(base, vol, n = 60) {
@@ -523,60 +607,83 @@ function buildRefCandles(base, vol, n = 60) {
   for (let i = n - 1; i >= 0; i--) {
     const m = (rn(s + i * 7) - 0.49) * vol;
     const o = Math.max(p - m, base * 0.5), c = p;
-    ca.unshift({ open: o, high: Math.max(o, c) + rn(s + i * 3) * vol * 0.3, low: Math.min(o, c) - rn(s + i * 5) * vol * 0.3, close: c });
+    ca.unshift({ open: o, high: Math.max(o,c)+rn(s+i*3)*vol*0.3,
+                 low: Math.min(o,c)-rn(s+i*5)*vol*0.3, close: c });
     p = o;
   }
-  ca[ca.length - 1].close = base;
+  ca[ca.length-1].close = base;
   return ca;
 }
 
-// ── Main price + candle fetcher ──
-// Returns { price, candles, source } always — never throws
+// ══════════════════════════════════════════════════
+// MASTER FETCHER — always returns { price, candles, source }
+// ══════════════════════════════════════════════════
 async function fetchPriceAndCandles(tvSym) {
+  const tdEntry  = tvToTwelve[tvSym];
   const yahooSym = tvToYahoo[tvSym];
-  const stooqSym = tvToStooq[tvSym];
   const refPrice = (yahooSym && refPrices[yahooSym]) ?? 100;
-  const vol = refPrice * 0.012;
-  const proxies = ['allorigins', 'corsproxy'];
+  const vol      = refPrice * 0.012;
 
-  for (const proxy of proxies) {
-    // Attempt 1: Stooq latest + history via proxy
-    if (stooqSym) {
-      try {
-        const [latest, history] = await Promise.all([
-          fetchStooqViaProxy(stooqSym, proxy),
-          fetchStooqHistoryViaProxy(stooqSym, proxy).catch(() => null)
-        ]);
-        const candles = history ?? buildRefCandles(latest.price, vol, 60);
-        if (candles.length > 0) candles[candles.length - 1].close = latest.price;
-        console.log(`✓ Price via ${proxy}/Stooq: ${latest.price}`);
-        return { price: latest.price, candles, source: 'stooq', proxy };
-      } catch (e) {
-        console.warn(`Stooq/${proxy} failed:`, e.message);
-      }
-    }
+  // ── If still inside a rate-limit window, go straight to cache ──
+  if (Date.now() < rateLimitUntil) {
+    const cached = getCachedPrice(tvSym);
+    if (cached) return { price: cached.price, candles: buildRefCandles(cached.price, vol, 60), source: 'cached' };
+  }
 
-    // Attempt 2: Yahoo via proxy
-    if (yahooSym) {
-      try {
-        const r = await fetchYahooViaProxy(yahooSym, proxy);
-        console.log(`✓ Price via ${proxy}/Yahoo: ${r.price}`);
-        return { price: r.price, candles: r.candles, source: 'yahoo', proxy };
-      } catch (e) {
-        console.warn(`Yahoo/${proxy} failed:`, e.message);
+  // ── Path A: Twelve Data ──
+  if (tdEntry && TWELVE_DATA_KEY !== 'YOUR_API_KEY_HERE') {
+    try {
+      const [price, candles] = await Promise.all([
+        fetchTwelvePrice(tdEntry),
+        fetchTwelveCandles(tdEntry, 90).catch(() => null),
+      ]);
+      const finalCandles = candles ?? buildRefCandles(price, vol, 60);
+      if (finalCandles.length > 0) finalCandles[finalCandles.length-1].close = price;
+      cachePrice(tvSym, price, currentDec, currentUnit);
+      console.log(`✓ TD: ${tvSym} = ${price}`);
+      return { price, candles: finalCandles, source: 'twelvedata' };
+    } catch(e) {
+      console.warn(`TD failed for ${tvSym}:`, e.message);
+      // ── Rate limit hit — serve cache immediately, start countdown ──
+      if (e.rateLimited) {
+        const retryAfter = e.retryAfter ?? 60;
+        rateLimitUntil = Date.now() + retryAfter * 1000;
+        const cached = getCachedPrice(tvSym);
+        if (cached) {
+          startCountdown(retryAfter, tvSym, currentDec, currentUnit);
+          return { price: cached.price, candles: buildRefCandles(cached.price, vol, 60), source: 'ratelimit' };
+        }
       }
     }
   }
 
-  // Last resort: reference price (always labelled clearly)
-  console.error(`All price sources failed for ${tvSym}, using reference ${refPrice}`);
-  return { price: refPrice, candles: buildRefCandles(refPrice, vol, 60), source: 'reference', proxy: null };
+  // ── Path B: Frankfurter for FX ──
+  const ffx = fxFrankfurter[tvSym];
+  if (ffx) {
+    try {
+      const rate = await fetchFrankfurter(ffx[0], ffx[1]);
+      cachePrice(tvSym, rate, currentDec, currentUnit);
+      return { price: rate, candles: buildRefCandles(rate, vol, 60), source: 'frankfurter' };
+    } catch(e) { console.warn('Frankfurter failed:', e.message); }
+  }
+
+  // ── Path C: Cached price (any age — better than nothing) ──
+  const cached = getCachedPrice(tvSym);
+  if (cached) {
+    console.warn(`Serving cached price: ${tvSym} = ${cached.price} (${cacheAge(tvSym)}s old)`);
+    return { price: cached.price, candles: buildRefCandles(cached.price, vol, 60), source: 'cached' };
+  }
+
+  // ── Path D: Reference (no cache, no API key, truly last resort) ──
+  console.error(`All sources failed for ${tvSym}, using reference ${refPrice}`);
+  return { price: refPrice, candles: buildRefCandles(refPrice, vol, 60), source: 'reference' };
 }
 
-// ── Update the price display elements ──
-function updatePriceDisplay(price, source, proxy, dec, unit) {
+// ══════════════════════════════════════════════════
+// PRICE DISPLAY
+// ══════════════════════════════════════════════════
+function updatePriceDisplay(price, source, dec, unit, tvSym) {
   if (!price || isNaN(price) || price <= 0) return;
-  lastKnownPrice = price;
 
   const priceEl = document.getElementById('priceBig');
   const labelEl = document.getElementById('priceChgSm');
@@ -586,35 +693,61 @@ function updatePriceDisplay(price, source, proxy, dec, unit) {
   priceEl.className = 'price-big price-flash';
   setTimeout(() => { if (priceEl) priceEl.className = 'price-big'; }, 700);
 
-  const srcLabels = {
-    'stooq': `● LIVE · Stooq · ${unit}`,
-    'yahoo': `● LIVE · Yahoo Finance · ${unit}`,
-    'reference': `⚠ REFERENCE ONLY · No live data available`,
-  };
-  const srcClasses = { 'stooq': 'stooq', 'yahoo': 'live', 'reference': 'ref' };
+  // Build label — for cached/rate-limited, show age
+  let label, cls, statusTxt, statusType;
+  const age = tvSym ? cacheAge(tvSym) : null;
+  const ageStr = age !== null ? ` · ${age}s ago` : '';
 
-  labelEl.textContent = srcLabels[source] ?? `● LIVE · ${unit}`;
-  labelEl.className = `price-chg-sm ${srcClasses[source] ?? 'live'}`;
-  labelEl.style.color = '';
+  switch(source) {
+    case 'twelvedata':
+      label = `▶ LIVE · Twelve Data · ${unit}`;
+      cls = 'live'; statusType = 'ok'; statusTxt = 'LIVE';
+      break;
+    case 'frankfurter':
+      label = `▶ LIVE · Frankfurter ECB · ${unit}`;
+      cls = 'live'; statusType = 'ok'; statusTxt = 'LIVE';
+      break;
+    case 'ratelimit':
+      label = `⏳ RATE LIMITED · last price${ageStr} · ${unit}`;
+      cls = 'ref'; statusType = 'busy'; statusTxt = 'RATE LIM';
+      break;
+    case 'cached':
+      label = `● LAST PRICE${ageStr} · ${unit}`;
+      cls = 'stooq'; statusType = 'busy'; statusTxt = 'CACHED';
+      break;
+    case 'reference':
+      label = `⚠ NO API KEY · add key to index.html`;
+      cls = 'ref'; statusType = 'err'; statusTxt = 'NO KEY';
+      break;
+    default:
+      label = `● LIVE · ${unit}`;
+      cls = 'live'; statusType = 'ok'; statusTxt = 'LIVE';
+  }
 
-  const isLive = source !== 'reference';
-  setStatus(isLive ? 'ok' : 'busy', isLive ? 'LIVE' : 'REFERENCE');
+  // Don't overwrite the countdown label if rate limited
+  if (source !== 'ratelimit') {
+    labelEl.textContent = label;
+    labelEl.className = `price-chg-sm ${cls}`;
+    labelEl.style.color = '';
+    clearInterval(countdownTimer);
+  }
+
+  setStatus(statusType, statusTxt);
   document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
 }
 
 // PRESET / LOAD
 function onPreset(val) { if (!val) return; loadPreset(val); }
 function loadPreset(val) {
-  const p = val.split('|');
-  if (p.length < 4) return;
+  const p = val.split('|'); if (p.length < 4) return;
   const [tvSym, name, unit, dec] = p;
   loadInstrument(tvSym, name, unit, parseInt(dec));
 }
 
 async function loadInstrument(tvSym, name, unit, dec) {
   currentSym = tvSym; currentName = name; currentUnit = unit; currentDec = dec;
-  lastKnownPrice = null;
   clearInterval(priceRefreshTimer);
+  clearInterval(countdownTimer);
 
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
@@ -622,37 +755,41 @@ async function loadInstrument(tvSym, name, unit, dec) {
   document.getElementById('instNameBig').textContent = name;
   document.getElementById('instMetaSm').textContent = `${tvSym} · ${unit} · REAL-TIME`;
   document.getElementById('chartSymName').textContent = name;
-  const tfLabel = { 'D': 'DAILY', '60': '1-HOUR', '240': '4-HOUR', 'W': 'WEEKLY' };
-  document.getElementById('chartSymSub').textContent = `${tvSym} · ${unit} · ${tfLabel[currentTF] ?? currentTF}`;
-  document.getElementById('priceBig').textContent = '···';
-  document.getElementById('priceChgSm').textContent = 'Fetching live price…';
-  document.getElementById('priceChgSm').className = 'price-chg-sm';
-  document.getElementById('priceChgSm').style.color = 'var(--mut)';
+  const tfLabel = { D:'DAILY', '60':'1-HOUR', '240':'4-HOUR', W:'WEEKLY' };
+  document.getElementById('chartSymSub').textContent = `${tvSym} · ${unit} · ${tfLabel[currentTF]??currentTF}`;
+
+  // Show cached price instantly if we have it — snappy UX
+  const cached = getCachedPrice(tvSym);
+  if (cached) {
+    document.getElementById('priceBig').textContent = cached.price.toFixed(dec);
+    document.getElementById('priceChgSm').textContent = `● LAST PRICE · ${cacheAge(tvSym)}s ago · ${unit}`;
+    document.getElementById('priceChgSm').className = 'price-chg-sm stooq';
+  } else {
+    document.getElementById('priceBig').textContent = '···';
+    document.getElementById('priceChgSm').textContent = 'Fetching live price…';
+    document.getElementById('priceChgSm').className = 'price-chg-sm';
+    document.getElementById('priceChgSm').style.color = 'var(--mut)';
+  }
+
   setStatus('busy', 'LOADING');
-  document.getElementById('updTxt').textContent = new Date().toLocaleTimeString('en-AU');
   document.getElementById('btnAI').disabled = true;
 
-  // Launch chart widget immediately (visual feedback)
   createWidget(tvSym);
 
-  // Fetch price + candles (used for both display AND analysis panel)
+  // Fetch fresh price + candles, build analysis with same data
   const priceData = await fetchPriceAndCandles(tvSym);
-
-  // Update price display immediately
-  updatePriceDisplay(priceData.price, priceData.source, priceData.proxy, dec, unit);
-
-  // Build analysis using the same candle data (no duplicate fetch)
+  updatePriceDisplay(priceData.price, priceData.source, dec, unit, tvSym);
   await buildAnalysisPanel(name, unit, dec, tvSym, priceData);
 
   document.getElementById('btnAI').disabled = false;
 
-  // Auto-refresh price every 20 seconds
+  // Auto-refresh every 30s — respects free tier (800 req/day = one per 108s; 30s is fine for active use)
   priceRefreshTimer = setInterval(async () => {
     if (currentSym !== tvSym) { clearInterval(priceRefreshTimer); return; }
     const fresh = await fetchPriceAndCandles(tvSym);
-    updatePriceDisplay(fresh.price, fresh.source, fresh.proxy, currentDec, currentUnit);
+    updatePriceDisplay(fresh.price, fresh.source, currentDec, currentUnit, tvSym);
     if (analysisCache) analysisCache.cur = fresh.price;
-  }, 20000);
+  }, 30000);
 }
 
 // TRADINGVIEW WIDGET
@@ -876,7 +1013,7 @@ async function reloadChart(){
   createWidget(currentSym);
   setStatus('busy','REFRESHING');
   const fresh=await fetchPriceAndCandles(currentSym);
-  updatePriceDisplay(fresh.price,fresh.source,fresh.proxy,currentDec,currentUnit);
+  updatePriceDisplay(fresh.price,fresh.source,currentDec,currentUnit,currentSym);
   if(analysisCache)analysisCache.cur=fresh.price;
 }
 function setStatus(t,txt){document.getElementById('sDot').className=`s-dot ${t}`;document.getElementById('sTxt').className=`s-txt ${t}`;document.getElementById('sTxt').textContent=txt;document.getElementById('updTxt').textContent=new Date().toLocaleTimeString('en-AU')}
